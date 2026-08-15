@@ -1,0 +1,83 @@
+/* Every visual decision in this example lives here. Components use semantic
+   class names only — no raw colours, radii, or shadows in the markup. */
+:root {
+  --color-bg: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-border: #e6e1da;
+  --color-text: #1b1917;
+  --color-text-muted: #6f6862;
+  --color-brand: #0d6e78;
+  --color-action: #d9622b;
+  --color-changed: #fdf3e7;
+  --color-danger: #b3261e;
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.07);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #17161a;
+    --color-surface: #201f24;
+    --color-border: #34323a;
+    --color-text: #f2efec;
+    --color-text-muted: #a49d97;
+    --color-brand: #4fd1c5;
+    --color-action: #f08a5d;
+    --color-changed: #3a2f22;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+.wrap { max-width: 60rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1 { margin: 0 0 .25rem; font-size: 1.9rem; letter-spacing: -0.02em; }
+.lede { margin: 0 0 .75rem; color: var(--color-text-muted); max-width: 44rem; }
+.engine { font-size: .85rem; padding: .55rem .75rem; border-radius: var(--radius-control); border: 1px solid var(--color-border); }
+.engine-live { color: var(--color-brand); }
+.engine-offline { color: var(--color-text-muted); }
+
+.bar { margin: 1.5rem 0; padding: 1rem; background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.bar textarea { width: 100%; font: inherit; padding: .6rem; resize: vertical;
+  border: 1px solid var(--color-border); border-radius: var(--radius-control);
+  background: var(--color-bg); color: var(--color-text); }
+.bar-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .6rem; }
+.intent { font-size: .8rem; color: var(--color-text-muted); margin-left: auto; }
+button { font: inherit; cursor: pointer; padding: .5rem .9rem; border-radius: var(--radius-control);
+  border: 1px solid transparent; background: var(--color-action); color: #fff; min-height: 44px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.ghost { background: transparent; color: var(--color-text); border-color: var(--color-border); }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+.chip { background: transparent; border: 1px dashed var(--color-border); color: var(--color-text-muted);
+  font-size: .82rem; text-align: left; min-height: 0; padding: .35rem .6rem; }
+.error { color: var(--color-danger); margin: .6rem 0 0; font-size: .9rem; }
+
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.field { display: flex; flex-direction: column; gap: .3rem; padding: .75rem;
+  border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); }
+.field.just-changed { background: var(--color-changed); border-color: var(--color-action); }
+.label { font-size: .85rem; font-weight: 600; display: flex; align-items: center; gap: .4rem; }
+.tag { font-style: normal; font-size: .65rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--color-action); border: 1px solid currentColor; border-radius: 999px; padding: 0 .35rem; }
+.field input, .field select, .field textarea { font: inherit; padding: .45rem;
+  border: 1px solid var(--color-border); border-radius: var(--radius-control);
+  background: var(--color-bg); color: var(--color-text); width: 100%; }
+.field input[type='checkbox'] { width: auto; min-height: 24px; }
+.field small { color: var(--color-text-muted); font-size: .75rem; }
+
+.transcript { margin-top: 1.5rem; }
+.transcript p { margin: .3rem 0; font-size: .9rem; }
+.transcript .assistant { color: var(--color-text-muted); }
+.values { margin-top: 1.5rem; }
+.values pre { overflow-x: auto; background: var(--color-surface); padding: .8rem;
+  border: 1px solid var(--color-border); border-radius: var(--radius-card); font-family: var(--font-mono); font-size: .8rem; }
+code { font-family: var(--font-mono); }
