@@ -1,20 +1,26 @@
-# @fleet/ai-forms
+# ai-forms
 
-Headless AI form filling and conversational refinement. One implementation, shared by every app in the fleet.
+[![npm](https://img.shields.io/npm/v/ai-forms.svg)](https://www.npmjs.com/package/ai-forms)
+[![CI](https://github.com/maonakamoto/ai-forms/actions/workflows/ci.yml/badge.svg)](https://github.com/maonakamoto/ai-forms/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Forms are the worst part of most software. This package makes every form in every project answer to plain language — fill it from a description, then keep talking to it ("shorter", "move the date to next Friday", "actually call it something else") until it is right.
+Headless AI form filling and conversational refinement.
+
+Forms are the worst part of most software. This package makes a form answer to plain language — fill it from a description, then keep talking to it ("shorter", "move the date to next Friday", "actually call it something else") until it is right.
 
 ```
-npm install github:maonakamoto/ai-forms#v0.1.0
+npm install ai-forms
 ```
 
-No registry auth. Versioned by git tag. `npm ci` builds it from source on install.
+No provider SDK, no markup, no styles. You pass in a function that calls whatever model you already use; the package handles prompting, parsing, sanitising, and the merge rules that decide who wins when the model and the user disagree.
+
+Works with any model (OpenAI, Anthropic, Groq, Gemini, local — anything you can wrap in `(prompt) => Promise<string>`), any framework on the server, and React on the client. The React hook is optional; the core is framework-free.
 
 ---
 
-## The standard
+## What "done" looks like
 
-An app meets the standard when all five hold:
+Five properties, all of which this package holds:
 
 1. **Every form can be filled from prose.** The user types what they want in one box; the form fills in.
 2. **Every filled form can be changed by talking to it.** Follow-up instructions apply to what is already there. This is the part almost everyone gets wrong — see "Why refinement silently fails" below.
@@ -45,7 +51,7 @@ The same mistake has a sibling: a single minimum input length. A fill descriptio
 
 ```ts
 // src/config/ai-forms.ts
-import { defineFields, type FormTarget } from '@fleet/ai-forms';
+import { defineFields, type FormTarget } from 'ai-forms';
 
 export const GOAL_FORM: FormTarget = {
   key: 'goal',
@@ -68,9 +74,8 @@ export const AI_FORMS = [GOAL_FORM /* , ... */];
 
 ```ts
 // src/app/api/ai/form-assist/route.ts
-import { createFormAssistHandler } from '@fleet/ai-forms/server';
+import { createFormAssistHandler } from 'ai-forms/server';
 import { AI_FORMS } from '@/config/ai-forms';
-import { callGroqText } from '@/lib/groq';
 import { getCurrentUserId } from '@/lib/session';
 
 export const POST = createFormAssistHandler({
@@ -78,12 +83,34 @@ export const POST = createFormAssistHandler({
   authorize: async () => (await getCurrentUserId())
     ? { ok: true }
     : { ok: false, status: 401, error: 'Sign in to use the assistant.' },
-  complete: ({ system, prompt, maxTokens, temperature }) =>
-    callGroqText(prompt, { systemPrompt: system, maxTokens, temperature }),
+
+  // Any provider. `complete` just has to return the model's text.
+  complete: async ({ system, prompt, maxTokens, temperature }) => {
+    const res = await fetch(`${process.env.LLM_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${process.env.LLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: process.env.LLM_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    });
+    const json = await res.json();
+    return json.choices[0].message.content;
+  },
 });
 ```
 
-The package never owns API keys, model choice, budgets, or fallback policy — the app passes its own caller. Field specs live on the server, so a client can never widen the set of fields the model may write.
+The package never owns API keys, model choice, budgets, or fallback policy — the app passes its own caller. That is deliberate: you already have retry, spend caps, and a fallback chain, and a form library has no business owning any of them.
+
+Field specs live on the server, so a client can never widen the set of fields the model may write.
 
 ### 3. Use the hook in the form
 
@@ -110,7 +137,7 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 
 ## API
 
-### `@fleet/ai-forms`
+### `ai-forms`
 
 | Export | Purpose |
 | --- | --- |
@@ -121,11 +148,11 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 | `parseAssistResponse(text)` | Extract JSON from fenced or prose-wrapped completions |
 | `MIN_INSTRUCTION_LENGTH` | Per-intent input floors |
 
-### `@fleet/ai-forms/server`
+### `ai-forms/server`
 
 `createFormAssistHandler(config)` → `(Request) => Promise<Response>`. Web-standard, so it drops straight into a Next.js App Router route. `authorize` runs before any model call.
 
-### `@fleet/ai-forms/react`
+### `ai-forms/react`
 
 `useAiForm(options)` → values, `setValue`, `ask` / `fill` / `refine`, `busy`, `error`, `transcript`, `changed`, `isAiTouched`, `undo`, `canUndo`, `reset`.
 
