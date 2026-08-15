@@ -1,4 +1,4 @@
-# @fleet/ai-forms
+# ai-forms
 
 Headless AI form filling and conversational refinement. One implementation, shared by every app in the fleet.
 
@@ -45,7 +45,7 @@ The same mistake has a sibling: a single minimum input length. A fill descriptio
 
 ```ts
 // src/config/ai-forms.ts
-import { defineFields, type FormTarget } from '@fleet/ai-forms';
+import { defineFields, type FormTarget } from 'ai-forms';
 
 export const GOAL_FORM: FormTarget = {
   key: 'goal',
@@ -68,7 +68,7 @@ export const AI_FORMS = [GOAL_FORM /* , ... */];
 
 ```ts
 // src/app/api/ai/form-assist/route.ts
-import { createFormAssistHandler } from '@fleet/ai-forms/server';
+import { createFormAssistHandler } from 'ai-forms/server';
 import { AI_FORMS } from '@/config/ai-forms';
 import { callGroqText } from '@/lib/groq';
 import { getCurrentUserId } from '@/lib/session';
@@ -110,7 +110,7 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 
 ## API
 
-### `@fleet/ai-forms`
+### `ai-forms`
 
 | Export | Purpose |
 | --- | --- |
@@ -121,11 +121,11 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 | `parseAssistResponse(text)` | Extract JSON from fenced or prose-wrapped completions |
 | `MIN_INSTRUCTION_LENGTH` | Per-intent input floors |
 
-### `@fleet/ai-forms/server`
+### `ai-forms/server`
 
 `createFormAssistHandler(config)` → `(Request) => Promise<Response>`. Web-standard, so it drops straight into a Next.js App Router route. `authorize` runs before any model call.
 
-### `@fleet/ai-forms/react`
+### `ai-forms/react`
 
 `useAiForm(options)` → values, `setValue`, `ask` / `fill` / `refine`, `busy`, `error`, `transcript`, `changed`, `isAiTouched`, `undo`, `canUndo`, `reset`.
 

@@ -1,13 +1,35 @@
 {
-  "name": "@fleet/ai-forms",
-  "version": "0.1.0",
+  "name": "ai-forms",
+  "version": "0.2.0",
   "description": "Headless AI form filling and conversational refinement. Provider-agnostic core, React hook, and a server route factory.",
+  "keywords": [
+    "ai",
+    "forms",
+    "form-fill",
+    "llm",
+    "react",
+    "structured-output",
+    "natural-language",
+    "zod",
+    "headless",
+    "openai",
+    "anthropic",
+    "form-builder"
+  ],
   "license": "MIT",
+  "homepage": "https://github.com/maonakamoto/ai-forms#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/maonakamoto/ai-forms.git"
   },
+  "bugs": {
+    "url": "https://github.com/maonakamoto/ai-forms/issues"
+  },
   "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
   "files": [
     "dist"
   ],
