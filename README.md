@@ -18,6 +18,21 @@ Works with any model (OpenAI, Anthropic, Groq, Gemini, local — anything you ca
 
 ---
 
+## Try it
+
+```bash
+git clone https://github.com/maonakamoto/ai-forms
+cd ai-forms/examples/next && npm install && npm run dev
+```
+
+No API key required — the example ships a deterministic offline matcher (clearly
+labelled as such in the UI) so the behaviour is visible immediately. Set
+`GROQ_API_KEY` or `OPENAI_API_KEY` for a real model.
+
+Fill the form from one sentence, then send *"actually make it principal level"* and
+watch only `seniority` change while salary, skills and contact survive. See
+[`examples/next`](examples/next).
+
 ## What "done" looks like
 
 Five properties, all of which this package holds:
