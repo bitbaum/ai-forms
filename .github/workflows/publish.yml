@@ -12,6 +12,17 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  # The reconciler, and the reason this is reliable. A merge made by auto-merge
+  # uses GITHUB_TOKEN, and a push with that token starts no workflow — so the
+  # push trigger above silently does not fire for exactly the merges that matter.
+  # auto-merge.yml re-arms a hand-maintained list of workflows, which is one more
+  # thing to keep in sync (it was already wrong once: publish.yml was missing).
+  #
+  # So the schedule asks the registry the same idempotent question on a timer:
+  # is package.json's version published? If a release was missed by any means,
+  # it goes out within the hour without anyone noticing it was missed.
+  schedule:
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 jobs:

@@ -50,5 +50,5 @@ jobs:
           # Everything that runs on push and therefore would NOT fire after a
           # merge made with the default GITHUB_TOKEN. Keep this in sync when a
           # push-triggered workflow is added.
-          REARM_WORKFLOWS: ci.yml
+          REARM_WORKFLOWS: ci.yml,publish.yml
         run: bash scripts/ci/auto-merge-sweep.sh
