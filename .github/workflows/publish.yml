@@ -38,7 +38,17 @@ jobs:
             exit 1
           fi
 
-      # No token: id-token above lets the CLI exchange a short-lived OIDC
-      # credential with npm. Provenance is generated automatically for a public
-      # package from a public repo, so --provenance is not needed either.
+      # OIDC (id-token above) is the preferred credential: npm exchanges it for
+      # a short-lived one and no secret has to exist. But trusted publishing is
+      # configured per package on npmjs.com, and a package that has never been
+      # published cannot have it configured — so OIDC alone cannot do the FIRST
+      # publish. It fails as E404 on the PUT ("could not be found or you do not
+      # have permission"), which reads like a missing package rather than a
+      # missing credential.
+      #
+      # NPM_TOKEN covers that first publish. npm prefers OIDC when the package
+      # has a trusted publisher, so once this package exists and one is
+      # configured, this secret stops being used and can be deleted.
       - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
