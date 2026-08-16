@@ -38,7 +38,14 @@ jobs:
             exit 1
           fi
 
-      # No token: id-token above lets the CLI exchange a short-lived OIDC
-      # credential with npm. Provenance is generated automatically for a public
-      # package from a public repo, so --provenance is not needed either.
+      # Bootstrap auth. Trusted publishing (OIDC) is the destination and needs no
+      # token, but it is configured on a PACKAGE — which cannot exist until it
+      # has been published once. So the first release authenticates with a token;
+      # once the package exists, the trusted publisher is configured, this env
+      # block is deleted, and the token is revoked.
+      #
+      # Provenance still works here: `id-token: write` above is what npm needs to
+      # attest the build, and that is independent of how the publish authenticates.
       - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
