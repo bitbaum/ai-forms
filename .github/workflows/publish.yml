@@ -1,18 +1,28 @@
 name: Publish
 
-# Publishing is driven by a version tag, so the released artifact is always
-# traceable to a commit. `npm version` creates the tag; pushing it ships.
+# Releasing is not a thing anyone does. Merge a version bump to main and the
+# package ships: this workflow asks the registry whether package.json's version
+# already exists, and publishes it if not.
+#
+# Why that check rather than a tag trigger: a tag pushed by GITHUB_TOKEN does
+# not start another workflow, so "push a tag, let publish.yml notice" silently
+# never runs. Asking npm what is published is also idempotent — re-running this,
+# or pushing a tag by hand, cannot double-publish or fail confusingly.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      # Required for npm provenance — proves on the registry that this tarball
-      # was built by this workflow from this commit.
+      # Tagging the released commit, so a version on the registry can always be
+      # traced back to the tree it was built from.
+      contents: write
+      # npm provenance: proves on the registry that this tarball was built by
+      # this workflow from this commit.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -22,30 +32,46 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - run: npm ci --ignore-scripts
-
-      # Never publish something that would not have passed CI.
-      - run: npm run verify
-
-      # Refuse to publish a tag whose version does not match package.json,
-      # rather than silently shipping the wrong number.
-      - name: Check tag matches package version
+      - name: Is this version already on the registry?
+        id: check
         run: |
-          tag="${GITHUB_REF_NAME#v}"
-          pkg=$(node -p "require('./package.json').version")
-          if [ "$tag" != "$pkg" ]; then
-            echo "Tag v$tag does not match package.json version $pkg" >&2
-            exit 1
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "→ $name@$version is already published; nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "→ $name@$version is not on the registry; releasing it."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Bootstrap auth. Trusted publishing (OIDC) is the destination and needs no
-      # token, but it is configured on a PACKAGE — which cannot exist until it
-      # has been published once. So the first release authenticates with a token;
-      # once the package exists, the trusted publisher is configured, this env
-      # block is deleted, and the token is revoked.
-      #
-      # Provenance still works here: `id-token: write` above is what npm needs to
-      # attest the build, and that is independent of how the publish authenticates.
-      - run: npm publish
+      - if: steps.check.outputs.publish == 'true'
+        run: npm ci --ignore-scripts
+
+      # Never publish something that would not have passed CI.
+      - if: steps.check.outputs.publish == 'true'
+        run: npm run verify
+
+      # Bootstrap auth. Trusted publishing (OIDC) needs no token and is the
+      # destination; until it is configured on the package, NPM_TOKEN is what
+      # authenticates. The token expires — token-health.yml warns before it does,
+      # rather than letting a release be the thing that discovers it.
+      - if: steps.check.outputs.publish == 'true'
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag the released commit
+        if: steps.check.outputs.publish == 'true'
+        env:
+          TAG: v${{ steps.check.outputs.version }}
+        run: |
+          # Tag after a successful publish, so a tag never claims a release that
+          # did not happen. Skipped silently if it already exists.
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "→ tag $TAG already exists"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
