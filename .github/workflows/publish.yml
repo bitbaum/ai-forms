@@ -18,7 +18,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # npm >= 11.5.1 is required for trusted publishing (OIDC); Node 24 ships it.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci --ignore-scripts
@@ -37,6 +38,7 @@ jobs:
             exit 1
           fi
 
+      # No token: id-token above lets the CLI exchange a short-lived OIDC
+      # credential with npm. Provenance is generated automatically for a public
+      # package from a public repo, so --provenance is not needed either.
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
