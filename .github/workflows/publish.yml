@@ -64,14 +64,11 @@ jobs:
       - if: steps.check.outputs.publish == 'true'
         run: npm run verify
 
-      # Bootstrap auth. Trusted publishing (OIDC) needs no token and is the
-      # destination; until it is configured on the package, NPM_TOKEN is what
-      # authenticates. The token expires — token-health.yml warns before it does,
-      # rather than letting a release be the thing that discovers it.
+      # Auth is trusted publishing (OIDC): npm accepts this job's identity token
+      # because the package's Trusted Publisher is pinned to exactly this repo
+      # and workflow. No npm token exists anywhere, so none can leak or expire.
       - if: steps.check.outputs.publish == 'true'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag the released commit
         if: steps.check.outputs.publish == 'true'

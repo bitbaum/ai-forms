@@ -1,6 +1,6 @@
 {
   "name": "ai-forms",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Headless AI form filling and conversational refinement. Provider-agnostic core, React hook, and a server route factory.",
   "license": "MIT",
   "author": "Mao Nakamoto",
