@@ -4,13 +4,13 @@
   "description": "Headless AI form filling and conversational refinement. Provider-agnostic core, React hook, and a server route factory.",
   "license": "MIT",
   "author": "Mao Nakamoto",
-  "homepage": "https://github.com/maonakamoto/ai-forms#readme",
+  "homepage": "https://github.com/catomean/ai-forms#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/maonakamoto/ai-forms.git"
+    "url": "git+https://github.com/catomean/ai-forms.git"
   },
   "bugs": {
-    "url": "https://github.com/maonakamoto/ai-forms/issues"
+    "url": "https://github.com/catomean/ai-forms/issues"
   },
   "keywords": [
     "ai",
