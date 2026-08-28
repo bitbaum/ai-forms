@@ -93,7 +93,7 @@ else
   # base quietly collecting more of them and getting harder to diagnose. But
   # when the PR *is* the repair, the same rule deadlocks the repo — the fix
   # cannot travel the path its own redness blocks, and only a human can move
-  # it. Seen in maonakamoto/aoz-housing on 2026-08-07: E2E red on the base, the
+  # it. Seen in bitbaum/aoz-housing on 2026-08-07: E2E red on the base, the
   # fix sitting green in a PR, every sweep refusing politely.
   #
   # So identify WHICH jobs are red and let a PR through only if its own checks
@@ -128,7 +128,7 @@ merged_any=0
 
 # OLDEST FIRST. `gh pr list` returns newest-first, and this loop merges the
 # first eligible PR and stops — so the newest green PR wins every sweep and an
-# older one can wait indefinitely. Observed in maonakamoto/fleetcrown on
+# older one can wait indefinitely. Observed in bitbaum/fleetcrown on
 # 2026-08-06: two consecutive sweeps merged the two newest PRs while three
 # older green ones were never even evaluated. With several agent sessions
 # opening PRs continuously, "newest wins" is starvation, and it starves the PR
