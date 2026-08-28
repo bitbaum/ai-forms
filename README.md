@@ -1,7 +1,7 @@
 # ai-forms
 
 [![npm](https://img.shields.io/npm/v/ai-forms.svg)](https://www.npmjs.com/package/ai-forms)
-[![CI](https://github.com/maonakamoto/ai-forms/actions/workflows/ci.yml/badge.svg)](https://github.com/maonakamoto/ai-forms/actions/workflows/ci.yml)
+[![CI](https://github.com/bitbaum/ai-forms/actions/workflows/ci.yml/badge.svg)](https://github.com/bitbaum/ai-forms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Headless AI form filling and conversational refinement.
@@ -21,7 +21,7 @@ Works with any model (OpenAI, Anthropic, Groq, Gemini, local — anything you ca
 ## Try it
 
 ```bash
-git clone https://github.com/maonakamoto/ai-forms
+git clone https://github.com/bitbaum/ai-forms
 cd ai-forms/examples/next && npm install && npm run dev
 ```
 
