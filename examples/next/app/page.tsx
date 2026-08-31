@@ -21,7 +21,10 @@ export default function Page() {
   const [engine, setEngine] = useState<{ mode: string; model: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/mode').then(r => r.json()).then(setEngine).catch(() => setEngine(null));
+    fetch('/api/mode')
+      .then((r) => r.json())
+      .then(setEngine)
+      .catch(() => setEngine(null));
   }, []);
 
   async function send(text: string) {
@@ -36,8 +39,8 @@ export default function Page() {
       <header>
         <h1>ai-forms</h1>
         <p className="lede">
-          Describe the job. Then keep talking to it. The second sentence <em>patches</em> the
-          form — it does not wipe it and start over.
+          Describe the job. Then keep talking to it. The second sentence <em>patches</em> the form —
+          it does not wipe it and start over.
         </p>
         {engine && (
           <p className={`engine engine-${engine.mode}`}>
@@ -53,8 +56,8 @@ export default function Page() {
           rows={2}
           value={draft}
           placeholder={form.isEmpty ? 'Describe the role…' : 'Now change something…'}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => {
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void send(draft);
           }}
         />
@@ -62,15 +65,24 @@ export default function Page() {
           <button onClick={() => void send(draft)} disabled={form.busy || !draft.trim()}>
             {form.busy ? 'Thinking…' : form.isEmpty ? 'Fill the form' : 'Apply change'}
           </button>
-          <button className="ghost" onClick={form.undo} disabled={!form.canUndo}>Undo</button>
-          <button className="ghost" onClick={form.reset}>Reset</button>
+          <button className="ghost" onClick={form.undo} disabled={!form.canUndo}>
+            Undo
+          </button>
+          <button className="ghost" onClick={form.reset}>
+            Reset
+          </button>
           <span className="intent">
             intent: <code>{form.isEmpty ? 'fill' : 'refine'}</code> (inferred)
           </span>
         </div>
         <div className="chips">
-          {(form.isEmpty ? [FILL_EXAMPLE] : REFINE_EXAMPLES).map(example => (
-            <button key={example} className="chip" onClick={() => void send(example)} disabled={form.busy}>
+          {(form.isEmpty ? [FILL_EXAMPLE] : REFINE_EXAMPLES).map((example) => (
+            <button
+              key={example}
+              className="chip"
+              onClick={() => void send(example)}
+              disabled={form.busy}
+            >
               {example}
             </button>
           ))}
@@ -79,11 +91,18 @@ export default function Page() {
       </section>
 
       <section className="grid">
-        {FIELDS.filter(f => !f.aiExcluded).map(field => (
-          <label key={field.name} className={form.changed.includes(field.name) ? 'field just-changed' : 'field'}>
+        {FIELDS.filter((f) => !f.aiExcluded).map((field) => (
+          <label
+            key={field.name}
+            className={form.changed.includes(field.name) ? 'field just-changed' : 'field'}
+          >
             <span className="label">
               {field.label}
-              {form.isAiTouched(field.name) && <em className="tag" title="Written by the assistant">ai</em>}
+              {form.isAiTouched(field.name) && (
+                <em className="tag" title="Written by the assistant">
+                  ai
+                </em>
+              )}
             </span>
             <FieldInput field={field} form={form} />
             {field.hint && <small>{field.hint}</small>}
@@ -115,35 +134,77 @@ function FieldInput({ field, form }: { field: FieldSpec; form: ReturnType<typeof
 
   switch (field.type) {
     case 'textarea':
-      return <textarea rows={4} value={form.text(field.name)} onChange={e => form.setValue(field.name, e.target.value)} />;
+      return (
+        <textarea
+          rows={4}
+          value={form.text(field.name)}
+          onChange={(e) => form.setValue(field.name, e.target.value)}
+        />
+      );
     case 'select':
       return (
-        <select value={form.text(field.name)} onChange={e => form.setValue(field.name, e.target.value)}>
+        <select
+          value={form.text(field.name)}
+          onChange={(e) => form.setValue(field.name, e.target.value)}
+        >
           <option value="">—</option>
-          {(field.options ?? []).map(o => (
-            <option key={o.value} value={o.value}>{o.label ?? o.value}</option>
+          {(field.options ?? []).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label ?? o.value}
+            </option>
           ))}
         </select>
       );
     case 'boolean':
-      return <input type="checkbox" checked={value === true} onChange={e => form.setValue(field.name, e.target.checked)} />;
+      return (
+        <input
+          type="checkbox"
+          checked={value === true}
+          onChange={(e) => form.setValue(field.name, e.target.checked)}
+        />
+      );
     case 'number':
       return (
-        <input type="number" value={form.text(field.name)}
-          onChange={e => form.setValue(field.name, e.target.value === '' ? '' : Number(e.target.value))} />
+        <input
+          type="number"
+          value={form.text(field.name)}
+          onChange={(e) =>
+            form.setValue(field.name, e.target.value === '' ? '' : Number(e.target.value))
+          }
+        />
       );
     case 'tags':
       return (
-        <input value={Array.isArray(value) ? value.join(', ') : form.text(field.name)}
+        <input
+          value={Array.isArray(value) ? value.join(', ') : form.text(field.name)}
           placeholder="comma separated"
-          onChange={e => form.setValue(field.name, e.target.value.split(',').map(s => s.trim()).filter(Boolean))} />
+          onChange={(e) =>
+            form.setValue(
+              field.name,
+              e.target.value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            )
+          }
+        />
       );
     case 'date':
-      return <input type="date" value={form.text(field.name)} onChange={e => form.setValue(field.name, e.target.value)} />;
+      return (
+        <input
+          type="date"
+          value={form.text(field.name)}
+          onChange={(e) => form.setValue(field.name, e.target.value)}
+        />
+      );
     default:
       return (
-        <input type={field.type === 'email' ? 'email' : 'text'} placeholder={field.placeholder}
-          value={form.text(field.name)} onChange={e => form.setValue(field.name, e.target.value)} />
+        <input
+          type={field.type === 'email' ? 'email' : 'text'}
+          placeholder={field.placeholder}
+          value={form.text(field.name)}
+          onChange={(e) => form.setValue(field.name, e.target.value)}
+        />
       );
   }
 }

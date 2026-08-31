@@ -15,10 +15,12 @@ function describeField(field: FieldSpec): string {
       if (field.max !== undefined) constraints.push(`maximum ${field.max}`);
       break;
     case 'select':
-      constraints.push(`exactly one of: ${(field.options ?? []).map(o => o.value).join(', ')}`);
+      constraints.push(`exactly one of: ${(field.options ?? []).map((o) => o.value).join(', ')}`);
       break;
     case 'multiselect':
-      constraints.push(`array, values from: ${(field.options ?? []).map(o => o.value).join(', ')}`);
+      constraints.push(
+        `array, values from: ${(field.options ?? []).map((o) => o.value).join(', ')}`,
+      );
       break;
     case 'boolean':
       constraints.push('boolean (true or false)');
@@ -95,7 +97,7 @@ export function buildSystemPrompt(target: string, intent: AssistIntent): string 
   return [
     ...shared,
     '- Fill in as many fields as the description genuinely supports.',
-    '- Prefer the user\'s own words for titles and descriptions over marketing phrasing.',
+    "- Prefer the user's own words for titles and descriptions over marketing phrasing.",
   ].join('\n');
 }
 
@@ -119,7 +121,7 @@ export function buildUserPrompt(input: {
   if (input.extraInstructions && input.extraInstructions.length > 0) {
     parts.push('');
     parts.push('Additional rules for this form:');
-    parts.push(input.extraInstructions.map(line => `- ${line}`).join('\n'));
+    parts.push(input.extraInstructions.map((line) => `- ${line}`).join('\n'));
   }
 
   const currentValues = input.values ?? {};
@@ -133,7 +135,9 @@ export function buildUserPrompt(input: {
     parts.push('');
     parts.push('Earlier turns in this conversation about this form:');
     parts.push(
-      input.history.map(turn => `${turn.role === 'user' ? 'User' : 'You'}: ${turn.text}`).join('\n')
+      input.history
+        .map((turn) => `${turn.role === 'user' ? 'User' : 'You'}: ${turn.text}`)
+        .join('\n'),
     );
   }
 
@@ -147,7 +151,7 @@ export function buildUserPrompt(input: {
   parts.push(
     input.intent === 'refine'
       ? `The user asks you to change the form: "${input.instruction}"`
-      : `Fill the form from this description: "${input.instruction}"`
+      : `Fill the form from this description: "${input.instruction}"`,
   );
 
   return parts.join('\n');

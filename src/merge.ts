@@ -17,16 +17,18 @@ export function mergeValues(
   aiValues: Record<string, unknown>,
   existingValues: Record<string, unknown> | undefined,
   intent: AssistIntent,
-  fields: readonly FieldSpec[]
+  fields: readonly FieldSpec[],
 ): { values: Record<string, unknown>; changed: string[] } {
   const existing = existingValues ?? {};
 
   if (intent === 'refine') {
-    const changed = Object.keys(aiValues).filter(key => !valuesEqual(aiValues[key], existing[key]));
+    const changed = Object.keys(aiValues).filter(
+      (key) => !valuesEqual(aiValues[key], existing[key]),
+    );
     return { values: { ...existing, ...aiValues }, changed };
   }
 
-  const overridable = new Set(fields.filter(f => f.overridable).map(f => f.name));
+  const overridable = new Set(fields.filter((f) => f.overridable).map((f) => f.name));
   const values: Record<string, unknown> = { ...aiValues };
 
   for (const [key, value] of Object.entries(existing)) {
@@ -35,7 +37,7 @@ export function mergeValues(
     }
   }
 
-  const changed = Object.keys(aiValues).filter(key => !valuesEqual(values[key], existing[key]));
+  const changed = Object.keys(aiValues).filter((key) => !valuesEqual(values[key], existing[key]));
   return { values, changed };
 }
 

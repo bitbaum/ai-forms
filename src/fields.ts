@@ -13,15 +13,15 @@ export type FieldNames<T extends readonly FieldSpec[]> = T[number]['name'];
 
 /** Fields the model is allowed to read and write. */
 export function assistableFields(fields: readonly FieldSpec[]): FieldSpec[] {
-  return fields.filter(f => !f.aiExcluded);
+  return fields.filter((f) => !f.aiExcluded);
 }
 
 /** Strip excluded fields out of a value bag before it reaches a prompt. */
 export function redactExcluded(
   values: Record<string, unknown>,
-  fields: readonly FieldSpec[]
+  fields: readonly FieldSpec[],
 ): Record<string, unknown> {
-  const excluded = new Set(fields.filter(f => f.aiExcluded).map(f => f.name));
+  const excluded = new Set(fields.filter((f) => f.aiExcluded).map((f) => f.name));
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (!excluded.has(key)) {
@@ -36,9 +36,11 @@ export function emptyValues(fields: readonly FieldSpec[]): Record<string, unknow
   const out: Record<string, unknown> = {};
   for (const field of fields) {
     out[field.name] =
-      field.type === 'boolean' ? false
-      : field.type === 'tags' || field.type === 'multiselect' ? []
-      : '';
+      field.type === 'boolean'
+        ? false
+        : field.type === 'tags' || field.type === 'multiselect'
+          ? []
+          : '';
   }
   return out;
 }

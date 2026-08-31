@@ -4,7 +4,11 @@ import type { CompleteFn } from 'ai-forms';
  * The example never bundles a key. Set one and you get a real model; set none
  * and you get the offline matcher below, which is honest about what it is.
  */
-export function resolveComplete(): { complete: CompleteFn; mode: 'live' | 'offline'; model: string } {
+export function resolveComplete(): {
+  complete: CompleteFn;
+  mode: 'live' | 'offline';
+  model: string;
+} {
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
 
@@ -12,16 +16,22 @@ export function resolveComplete(): { complete: CompleteFn; mode: 'live' | 'offli
     return {
       mode: 'live',
       model: process.env.AI_FORMS_MODEL ?? 'llama-3.3-70b-versatile',
-      complete: openAiCompatible('https://api.groq.com/openai/v1/chat/completions', groq,
-        process.env.AI_FORMS_MODEL ?? 'llama-3.3-70b-versatile'),
+      complete: openAiCompatible(
+        'https://api.groq.com/openai/v1/chat/completions',
+        groq,
+        process.env.AI_FORMS_MODEL ?? 'llama-3.3-70b-versatile',
+      ),
     };
   }
   if (openai) {
     return {
       mode: 'live',
       model: process.env.AI_FORMS_MODEL ?? 'gpt-4o-mini',
-      complete: openAiCompatible('https://api.openai.com/v1/chat/completions', openai,
-        process.env.AI_FORMS_MODEL ?? 'gpt-4o-mini'),
+      complete: openAiCompatible(
+        'https://api.openai.com/v1/chat/completions',
+        openai,
+        process.env.AI_FORMS_MODEL ?? 'gpt-4o-mini',
+      ),
     };
   }
   return { mode: 'offline', model: 'offline pattern matcher', complete: offlineComplete };
@@ -63,11 +73,13 @@ export const offlineComplete: CompleteFn = async ({ prompt }) => {
   const text = (said?.[1] ?? '').toLowerCase();
   const values: Record<string, unknown> = {};
 
-  const seniority = ['principal', 'staff', 'senior', 'junior', 'intern', 'mid']
-    .find(level => text.includes(level));
+  const seniority = ['principal', 'staff', 'senior', 'junior', 'intern', 'mid'].find((level) =>
+    text.includes(level),
+  );
   if (seniority) values['seniority'] = seniority;
 
-  if (/\bremote\b/.test(text)) values['remote'] = !/\b(no|not|non|onsite|on-site)[- ]?remote\b/.test(text);
+  if (/\bremote\b/.test(text))
+    values['remote'] = !/\b(no|not|non|onsite|on-site)[- ]?remote\b/.test(text);
   if (/\b(onsite|on-site|in office|in-office)\b/.test(text)) values['remote'] = false;
 
   // "120k-150k", "120000 to 150000", "up to 150k". Dates are stripped first so a
@@ -75,18 +87,46 @@ export const offlineComplete: CompleteFn = async ({ prompt }) => {
   // clear an annual-salary floor to count.
   const moneyText = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ');
   const money = [...moneyText.matchAll(/(\d[\d'.,]*)\s*(k\b)?/g)]
-    .map(m => Math.round(parseFloat(m[1].replace(/['.,]/g, '')) * (m[2] ? 1000 : 1)))
-    .filter(n => n >= 10_000 && n <= 10_000_000);
-  if (money.length >= 2) { values['salaryMin'] = Math.min(...money); values['salaryMax'] = Math.max(...money); }
-  else if (money.length === 1) values[/\bup to|max|below\b/.test(text) ? 'salaryMax' : 'salaryMin'] = money[0];
+    .map((m) => Math.round(parseFloat(m[1].replace(/['.,]/g, '')) * (m[2] ? 1000 : 1)))
+    .filter((n) => n >= 10_000 && n <= 10_000_000);
+  if (money.length >= 2) {
+    values['salaryMin'] = Math.min(...money);
+    values['salaryMax'] = Math.max(...money);
+  } else if (money.length === 1)
+    values[/\bup to|max|below\b/.test(text) ? 'salaryMax' : 'salaryMin'] = money[0];
 
-  for (const [code, re] of [['EUR', /\beur|euro|€/], ['USD', /\busd|dollar|\$/], ['CHF', /\bchf|franc/]] as const) {
-    if (re.test(text)) { values['currency'] = code; break; }
+  for (const [code, re] of [
+    ['EUR', /\beur|euro|€/],
+    ['USD', /\busd|dollar|\$/],
+    ['CHF', /\bchf|franc/],
+  ] as const) {
+    if (re.test(text)) {
+      values['currency'] = code;
+      break;
+    }
   }
 
-  const KNOWN = ['typescript','javascript','react','next.js','nextjs','node','python','go','rust',
-    'postgres','postgresql','kubernetes','docker','aws','graphql','tailwind','prisma','sql'];
-  const skills = KNOWN.filter(s => text.includes(s));
+  const KNOWN = [
+    'typescript',
+    'javascript',
+    'react',
+    'next.js',
+    'nextjs',
+    'node',
+    'python',
+    'go',
+    'rust',
+    'postgres',
+    'postgresql',
+    'kubernetes',
+    'docker',
+    'aws',
+    'graphql',
+    'tailwind',
+    'prisma',
+    'sql',
+  ];
+  const skills = KNOWN.filter((s) => text.includes(s));
   if (skills.length) values['skills'] = skills;
 
   const iso = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
@@ -107,7 +147,8 @@ export const offlineComplete: CompleteFn = async ({ prompt }) => {
   if (Object.keys(values).length === 0) {
     return JSON.stringify({
       values: {},
-      message: 'The offline matcher did not recognise that. Add GROQ_API_KEY or OPENAI_API_KEY for a real model.',
+      message:
+        'The offline matcher did not recognise that. Add GROQ_API_KEY or OPENAI_API_KEY for a real model.',
     });
   }
 

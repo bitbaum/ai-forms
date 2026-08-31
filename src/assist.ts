@@ -86,7 +86,7 @@ export async function runFormAssist(input: {
 
   const parsed = parseAssistResponse(content);
   if (!parsed) {
-    return { ok: false, error: 'Could not read the assistant\'s reply. Try rephrasing.' };
+    return { ok: false, error: "Could not read the assistant's reply. Try rephrasing." };
   }
 
   const aiValues = sanitizeValues(parsed.values, target.fields);
@@ -112,7 +112,7 @@ export async function runFormAssist(input: {
 
 /** Honest fallback when the model returns values but no sentence. */
 function describeChange(changed: readonly string[], fields: readonly FieldSpec[]): string {
-  const labels = changed.map(name => fields.find(f => f.name === name)?.label ?? name);
+  const labels = changed.map((name) => fields.find((f) => f.name === name)?.label ?? name);
   if (labels.length === 1) {
     return `Updated ${labels[0]}.`;
   }
