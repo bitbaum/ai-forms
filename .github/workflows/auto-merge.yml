@@ -1,19 +1,22 @@
 # Auto-merge — nobody is in the merge loop.
 #
-# Green, ready PRs merge themselves and deploy themselves. The owner does not
-# review PRs, and background-job agent sessions are barred from merging by hand,
-# so the policy lives in scripts/ci/auto-merge-sweep.sh (read it — it defines
-# exactly what "ready" means and how a PR is held back).
+# Green, ready PRs merge themselves. The policy lives in ONE place for the
+# whole fleet — bitbaum/fleet, scripts/ci/auto-merge-sweep.sh — and this file
+# only says "run it, with these settings".
 #
-# Two triggers, deliberately:
-#   workflow_run — merges within seconds of CI going green (the common path).
-#   schedule     — a safety net. Catches PRs whose checks finished while this
-#                  workflow was failing/disabled, and PRs whose last check was
-#                  an external status that reported after CI. Without it, a PR
-#                  that went green "off-cycle" waits forever.
+# This repo held one of the drifted local copies of that script, and the drift
+# bit for real on 2026-08-31: the local copy word-splits REARM_WORKFLOWS on
+# whitespace, this file passed 'ci.yml,publish.yml', so every sweep dispatched
+# the literal workflow "ci.yml,publish.yml", failed, and main's tip never got a
+# CI run — the next sweep then waited forever on "CI catching up". Four merges
+# in a row needed a hand dispatch. The canonical workflow documents exactly
+# this trap at its rearm_workflows input; adopting it deletes the copy that
+# made the trap possible.
+#
+# The triggers stay here because they are genuinely per-repo: workflow_run
+# must name the CI workflow exactly.
 #
 # To stop all of this: delete this file, or add a `hold` label to a PR.
-
 name: Auto-merge
 
 on:
@@ -24,31 +27,24 @@ on:
     - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
+# Declared on the CALLER as well as inside the reusable workflow: a called
+# workflow's token is capped by what the caller grants, so relying on the
+# callee's block alone can hand it a read-only token — and the sweep would then
+# merge nothing while still exiting 0, which is indistinguishable from having
+# nothing to merge.
 permissions:
   contents: write # merge the PR
   pull-requests: write # read PR state, delete the branch
   actions: write # dispatch the re-arm workflows
-
-# Never let two sweeps merge concurrently — they would race on the same PRs.
-concurrency:
-  group: auto-merge
-  cancel-in-progress: false
+  checks: read # statusCheckRollup — only load-bearing on private repos
+  statuses: read
 
 jobs:
   sweep:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Merge every green, ready PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          BASE_BRANCH: ${{ github.event.repository.default_branch }}
-          CI_WORKFLOW: ci.yml
-          # Everything that runs on push and therefore would NOT fire after a
-          # merge made with the default GITHUB_TOKEN. Keep this in sync when a
-          # push-triggered workflow is added.
-          REARM_WORKFLOWS: ci.yml,publish.yml
-        run: bash scripts/ci/auto-merge-sweep.sh
+    uses: bitbaum/fleet/.github/workflows/auto-merge-sweep.yml@main
+    with:
+      base_branch: main
+      ci_workflow: ci.yml
+      # SPACE-separated: the sweep word-splits this. The comma version of this
+      # line is the exact bug this adoption fixes.
+      rearm_workflows: 'ci.yml publish.yml'
