@@ -57,7 +57,13 @@ before(() => {
     .split('\n')
     .pop();
 
-  execFileSync('tar', ['-xzf', path.join(workspace, tarball), '-C', installDir, '--strip-components=1']);
+  execFileSync('tar', [
+    '-xzf',
+    path.join(workspace, tarball),
+    '-C',
+    installDir,
+    '--strip-components=1',
+  ]);
 
   // Runs from the temp workspace, so `ai-forms` resolves through node_modules
   // and the exports map exactly as it would in a consumer's project.
@@ -91,11 +97,11 @@ for (const sub of ['.', './server']) {
 }
 
 console.log(JSON.stringify({ out, resolved }));
-`
+`,
   );
 
   probe = JSON.parse(
-    execFileSync('node', [probeFile], { cwd: workspace, encoding: 'utf8' }).trim()
+    execFileSync('node', [probeFile], { cwd: workspace, encoding: 'utf8' }).trim(),
   );
 });
 
@@ -111,7 +117,7 @@ test('every declared entry point resolves from a consumer install', () => {
     assert.ok(url, `exports map does not resolve "${subpath}"`);
     assert.ok(
       existsSync(new URL(url)),
-      `"${subpath}" resolves to ${url}, which is not in the tarball`
+      `"${subpath}" resolves to ${url}, which is not in the tarball`,
     );
   }
 });
@@ -122,7 +128,7 @@ test('the runtime entry points expose their whole public API', () => {
     for (const name of PUBLIC_API[subpath]) {
       assert.ok(
         probe.out[subpath].includes(name),
-        `"${name}" is missing from the published "${subpath}" entry point`
+        `"${name}" is missing from the published "${subpath}" entry point`,
       );
     }
   }
@@ -139,7 +145,7 @@ test('the react entry point ships the exports it declares', () => {
     assert.match(
       source,
       new RegExp(`\\b${name}\\b`),
-      `"${name}" is missing from the published react entry point`
+      `"${name}" is missing from the published react entry point`,
     );
   }
 });
@@ -152,7 +158,7 @@ test('every entry point ships the type declarations it advertises', () => {
     assert.ok(entry.types, `"${subpath}" declares no types entry`);
     assert.ok(
       existsSync(path.join(installDir, entry.types)),
-      `"${subpath}" advertises types at ${entry.types}, which is not in the tarball`
+      `"${subpath}" advertises types at ${entry.types}, which is not in the tarball`,
     );
   }
 });

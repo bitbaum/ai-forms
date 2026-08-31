@@ -14,7 +14,12 @@ import { createFormAssistHandler } from '../dist/server.js';
 const FIELDS = defineFields([
   { name: 'title', label: 'Title', type: 'text', required: true },
   { name: 'description', label: 'Description', type: 'textarea', maxLength: 40 },
-  { name: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'paused' }] },
+  {
+    name: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [{ value: 'active', label: 'Active' }, { value: 'paused' }],
+  },
   { name: 'effort', label: 'Effort', type: 'number', min: 1, max: 5 },
   { name: 'due', label: 'Due', type: 'date' },
   { name: 'tags', label: 'Tags', type: 'tags' },
@@ -34,7 +39,7 @@ test('fill protects what the user already typed', () => {
     { title: 'AI title', description: 'AI description' },
     { title: 'My title', description: '' },
     'fill',
-    FIELDS
+    FIELDS,
   );
   assert.equal(values.title, 'My title', 'user input must survive a fill');
   assert.equal(values.description, 'AI description');
@@ -42,12 +47,7 @@ test('fill protects what the user already typed', () => {
 });
 
 test('fill may replace a field marked overridable', () => {
-  const { values, changed } = mergeValues(
-    { currency: 'EUR' },
-    { currency: 'CHF' },
-    'fill',
-    FIELDS
-  );
+  const { values, changed } = mergeValues({ currency: 'EUR' }, { currency: 'CHF' }, 'fill', FIELDS);
   assert.equal(values.currency, 'EUR');
   assert.deepEqual(changed, ['currency']);
 });
@@ -57,7 +57,7 @@ test('refine lets the model win, and keeps fields it did not return', () => {
     { description: 'Shorter.' },
     { title: 'Keep me', description: 'A very long original description' },
     'refine',
-    FIELDS
+    FIELDS,
   );
   assert.equal(values.description, 'Shorter.');
   assert.equal(values.title, 'Keep me', 'omitted fields keep their value');
@@ -81,7 +81,7 @@ test('sanitize coerces to the declared types and drops the rest', () => {
       invented: 'nope',
       ownerId: 'attacker-supplied',
     },
-    FIELDS
+    FIELDS,
   );
 
   assert.equal(clean.title, 'Trimmed');
@@ -100,7 +100,9 @@ test('sanitize drops values that cannot be coerced rather than guessing', () => 
 });
 
 test('parse survives fences and surrounding prose', () => {
-  const fenced = parseAssistResponse('Sure!\n```json\n{"values":{"title":"A"},"message":"Set it."}\n```');
+  const fenced = parseAssistResponse(
+    'Sure!\n```json\n{"values":{"title":"A"},"message":"Set it."}\n```',
+  );
   assert.deepEqual(fenced.values, { title: 'A' });
   assert.equal(fenced.message, 'Set it.');
 
@@ -179,7 +181,9 @@ test('a provider failure surfaces as an error, not a crash', async () => {
   const result = await runFormAssist({
     target: TARGET,
     request: { intent: 'fill', instruction: 'something reasonable here', values: {} },
-    complete: async () => { throw new Error('groq 429'); },
+    complete: async () => {
+      throw new Error('groq 429');
+    },
   });
   assert.equal(result.ok, false);
   assert.equal(result.error, 'groq 429');
@@ -194,8 +198,12 @@ test('the handler refuses forms it does not know', async () => {
   const response = await handler(
     new Request('http://localhost/api/ai/form-assist', {
       method: 'POST',
-      body: JSON.stringify({ target: 'not-a-form', intent: 'fill', instruction: 'anything at all' }),
-    })
+      body: JSON.stringify({
+        target: 'not-a-form',
+        intent: 'fill',
+        instruction: 'anything at all',
+      }),
+    }),
   );
   assert.equal(response.status, 400);
   const body = await response.json();
@@ -207,14 +215,17 @@ test('the handler runs authorize before touching the model', async () => {
   const handler = createFormAssistHandler({
     targets: [TARGET],
     authorize: () => ({ ok: false, status: 401, error: 'Sign in first.' }),
-    complete: async () => { called = true; return '{}'; },
+    complete: async () => {
+      called = true;
+      return '{}';
+    },
   });
 
   const response = await handler(
     new Request('http://localhost/api/ai/form-assist', {
       method: 'POST',
       body: JSON.stringify({ target: 'demo', intent: 'fill', instruction: 'anything at all' }),
-    })
+    }),
   );
   assert.equal(response.status, 401);
   assert.equal(called, false, 'an unauthorised request must not reach the provider');

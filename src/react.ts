@@ -58,7 +58,7 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
     () => ({ ...emptyValues(fields), ...(options.initialValues ?? {}) }),
     // Field specs and initial values are module-level config in practice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   const [values, setValuesState] = useState<Record<string, unknown>>(blank);
@@ -73,11 +73,11 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
   const isEmpty = useMemo(() => !Object.values(values).some(hasContent), [values]);
 
   const setValue = useCallback((name: string, value: unknown) => {
-    setValuesState(current => ({ ...current, [name]: value }));
+    setValuesState((current) => ({ ...current, [name]: value }));
   }, []);
 
   const setValues = useCallback((next: Record<string, unknown>) => {
-    setValuesState(current => ({ ...current, ...next }));
+    setValuesState((current) => ({ ...current, ...next }));
   }, []);
 
   const text = useCallback(
@@ -85,7 +85,7 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
       const value = values[name];
       return value === null || value === undefined ? '' : String(value);
     },
-    [values]
+    [values],
   );
 
   const reset = useCallback(() => {
@@ -120,7 +120,7 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
       setBusy(true);
       setError(null);
       const priorTranscript = transcript;
-      setTranscript(current => [...current, { role: 'user', text: trimmed }]);
+      setTranscript((current) => [...current, { role: 'user', text: trimmed }]);
 
       try {
         const response = await doFetch(endpoint, {
@@ -140,7 +140,7 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
 
         if (!result.ok) {
           setError(result.error);
-          setTranscript(current => [...current, { role: 'assistant', text: result.error }]);
+          setTranscript((current) => [...current, { role: 'assistant', text: result.error }]);
           return result;
         }
 
@@ -148,28 +148,27 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
         setCanUndo(true);
         setValuesState(result.values);
         setChanged(result.changed);
-        setTouched(current => Array.from(new Set([...current, ...result.changed])));
-        setTranscript(current => [...current, { role: 'assistant', text: result.message }]);
+        setTouched((current) => Array.from(new Set([...current, ...result.changed])));
+        setTranscript((current) => [...current, { role: 'assistant', text: result.message }]);
         onApplied?.(result.values, result.changed);
         return result;
       } catch (caught) {
-        const message =
-          caught instanceof Error ? caught.message : 'Could not reach the assistant.';
+        const message = caught instanceof Error ? caught.message : 'Could not reach the assistant.';
         setError(message);
-        setTranscript(current => [...current, { role: 'assistant', text: message }]);
+        setTranscript((current) => [...current, { role: 'assistant', text: message }]);
         return { ok: false, error: message };
       } finally {
         setBusy(false);
       }
     },
-    [doFetch, endpoint, onApplied, options, target, transcript, values]
+    [doFetch, endpoint, onApplied, options, target, transcript, values],
   );
 
   const fill = useCallback((instruction: string) => run(instruction, 'fill'), [run]);
   const refine = useCallback((instruction: string) => run(instruction, 'refine'), [run]);
   const ask = useCallback(
     (instruction: string) => run(instruction, isEmpty ? 'fill' : 'refine'),
-    [isEmpty, run]
+    [isEmpty, run],
   );
 
   const isAiTouched = useCallback((name: string) => touched.includes(name), [touched]);

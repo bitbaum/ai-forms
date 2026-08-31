@@ -19,9 +19,9 @@ export interface FormAssistHandlerConfig {
  * App Router route (`export const POST = createFormAssistHandler({...})`).
  */
 export function createFormAssistHandler(
-  config: FormAssistHandlerConfig
+  config: FormAssistHandlerConfig,
 ): (request: Request) => Promise<Response> {
-  const registry = new Map(config.targets.map(target => [target.key, target]));
+  const registry = new Map(config.targets.map((target) => [target.key, target]));
   const respond = config.respond ?? defaultRespond;
 
   return async function handle(request: Request): Promise<Response> {

@@ -11,7 +11,7 @@ import type { FieldSpec } from './types.js';
  */
 export function sanitizeValues(
   raw: unknown,
-  fields: readonly FieldSpec[]
+  fields: readonly FieldSpec[],
 ): Record<string, unknown> {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     return {};
@@ -49,7 +49,7 @@ function coerce(value: unknown, field: FieldSpec): unknown {
     case 'select':
       return coerceOption(value, field);
     case 'multiselect':
-      return coerceStringArray(value).filter(v => optionValues(field).includes(v));
+      return coerceStringArray(value).filter((v) => optionValues(field).includes(v));
     case 'tags':
       return coerceStringArray(value);
     case 'date':
@@ -60,7 +60,7 @@ function coerce(value: unknown, field: FieldSpec): unknown {
 }
 
 function optionValues(field: FieldSpec): string[] {
-  return (field.options ?? []).map(o => o.value);
+  return (field.options ?? []).map((o) => o.value);
 }
 
 /** A number, possibly wrapped in prose or formatting ("about 5", "CHF 1,200"). */
@@ -121,17 +121,23 @@ function coerceOption(value: unknown, field: FieldSpec): string | undefined {
   // Models routinely return the label, or the value in a different case.
   const normalized = value.trim().toLowerCase();
   const byLabel = (field.options ?? []).find(
-    o => o.value.toLowerCase() === normalized || (o.label ?? '').toLowerCase() === normalized
+    (o) => o.value.toLowerCase() === normalized || (o.label ?? '').toLowerCase() === normalized,
   );
   return byLabel?.value;
 }
 
 function coerceStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === 'string').map(v => v.trim()).filter(Boolean);
+    return value
+      .filter((v): v is string => typeof v === 'string')
+      .map((v) => v.trim())
+      .filter(Boolean);
   }
   if (typeof value === 'string') {
-    return value.split(',').map(v => v.trim()).filter(Boolean);
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
   }
   return [];
 }
@@ -159,9 +165,11 @@ function coerceDate(value: unknown): string | undefined {
 
 function coerceText(value: unknown, field: FieldSpec): string | undefined {
   const text =
-    typeof value === 'string' ? value
-    : typeof value === 'number' || typeof value === 'boolean' ? String(value)
-    : undefined;
+    typeof value === 'string'
+      ? value
+      : typeof value === 'number' || typeof value === 'boolean'
+        ? String(value)
+        : undefined;
   if (text === undefined) {
     return undefined;
   }
