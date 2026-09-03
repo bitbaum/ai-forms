@@ -1,0 +1,4 @@
+# pnpm 11 blocks dependency build scripts unless allowlisted here.
+# sharp is next/image's native binary - it must compile/download at install.
+allowBuilds:
+  sharp: true

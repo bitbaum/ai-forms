@@ -22,7 +22,7 @@ Works with any model (OpenAI, Anthropic, Groq, Gemini, local — anything you ca
 
 ```bash
 git clone https://github.com/bitbaum/ai-forms
-cd ai-forms/examples/next && npm install && npm run dev
+cd ai-forms/examples/next && pnpm install && pnpm run dev
 ```
 
 No API key required — the example ships a deterministic offline matcher (clearly
@@ -177,7 +177,7 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 
 ## Guarantees the tests hold
 
-`npm run verify` runs the build and the suite. The suite exists to stop specific regressions, not for coverage:
+`pnpm run verify` runs the build and the suite. The suite exists to stop specific regressions, not for coverage:
 
 - a fill never overwrites what the user typed; an `overridable` default may be replaced
 - a refine applies to existing text and keeps the fields it did not return

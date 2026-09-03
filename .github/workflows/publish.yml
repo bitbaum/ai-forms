@@ -37,6 +37,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
+      # pnpm version comes from "packageManager" in package.json (SSOT).
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           # npm >= 11.5.1 is required for trusted publishing (OIDC); Node 24 ships it.
@@ -58,11 +60,11 @@ jobs:
           fi
 
       - if: steps.check.outputs.publish == 'true'
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Never publish something that would not have passed CI.
       - if: steps.check.outputs.publish == 'true'
-        run: npm run verify
+        run: pnpm run verify
 
       # Auth is trusted publishing (OIDC): npm accepts this job's identity token
       # because the package's Trusted Publisher is pinned to exactly this repo

@@ -3,8 +3,8 @@
 A job-posting form you fill by describing it, then change by continuing to talk to it.
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
+pnpm install
+pnpm run dev       # http://localhost:3000
 ```
 
 **No API key needed to try it.** With no key set, the example answers from a
