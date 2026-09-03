@@ -11,9 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # pnpm version comes from "packageManager" in package.json (SSOT);
+      # pnpm/action-setup@v6 errors if both are specified.
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: npm ci --ignore-scripts
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       # The same bundle consumers get: a clean build plus the regression suite.
-      - run: npm run verify
+      - run: pnpm run verify
