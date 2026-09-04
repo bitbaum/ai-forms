@@ -9,7 +9,7 @@ Headless AI form filling and conversational refinement.
 Forms are the worst part of most software. This package makes a form answer to plain language — fill it from a description, then keep talking to it ("shorter", "move the date to next Friday", "actually call it something else") until it is right.
 
 ```
-npm install ai-forms
+pnpm add ai-forms
 ```
 
 No provider SDK, no markup, no styles. You pass in a function that calls whatever model you already use; the package handles prompting, parsing, sanitising, and the merge rules that decide who wins when the model and the user disagree.
