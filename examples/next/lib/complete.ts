@@ -3,6 +3,33 @@ import type { CompleteFn } from 'ai-forms';
 /**
  * The example never bundles a key. Set one and you get a real model; set none
  * and you get the offline matcher below, which is honest about what it is.
+ *
+ * ── This file is REFERENCE CODE, so it has to get the boring parts right ─────
+ * `CompleteFn` is deliberately bring-your-own-provider: the package does not
+ * choose a vendor for you. That makes this file the thing people copy, and a
+ * copied mistake is the most expensive kind. Three of them were here:
+ *
+ *   A PINNED MODEL ID ROTS. The default was `llama-3.3-70b-versatile`, which
+ *   Groq retired along with the rest of the llama-3 family — verified live on
+ *   2026-09-07, it answers 404 `model_not_found`. Anyone who followed the
+ *   README with a Groq key got a broken example and no idea why. A LIST, tried
+ *   in order, is the only shape that survives a vendor's release notes.
+ *
+ *   AN EMPTY HTTP 200 IS NOT AN ANSWER. `content ?? ''` returned the empty
+ *   string as though the model had spoken. Some models return exactly that
+ *   after spending their whole token budget on hidden reasoning, and an empty
+ *   completion here becomes "the assistant filled in nothing" with no error to
+ *   explain it.
+ *
+ *   A REQUEST WITH NO DEADLINE never falls back. A provider that accepts the
+ *   connection and then goes quiet holds the form open forever, and the next
+ *   model in the list is never reached.
+ *
+ * If you would rather not hand-roll any of this: `@bitbaum/ai-kit` ships a
+ * `complete()` that owns the walk, the deadline, the empty-200 rule and the
+ * three different meanings of HTTP 429. This example stays dependency-free on
+ * purpose — it exists to show what `CompleteFn` is — but "dependency-free" is
+ * not a licence to demonstrate the wrong thing.
  */
 export function resolveComplete(): {
   complete: CompleteFn;
@@ -12,52 +39,86 @@ export function resolveComplete(): {
   const groq = process.env.GROQ_API_KEY;
   const openai = process.env.OPENAI_API_KEY;
 
+  // A list, not a name. `AI_FORMS_MODEL` still wins when set, and may itself be
+  // a comma-separated list.
+  const configured = (process.env.AI_FORMS_MODEL ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+
   if (groq) {
+    const models = configured.length ? configured : ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
     return {
       mode: 'live',
-      model: process.env.AI_FORMS_MODEL ?? 'llama-3.3-70b-versatile',
-      complete: openAiCompatible(
-        'https://api.groq.com/openai/v1/chat/completions',
-        groq,
-        process.env.AI_FORMS_MODEL ?? 'llama-3.3-70b-versatile',
-      ),
+      model: models.join(' → '),
+      complete: openAiCompatible('https://api.groq.com/openai/v1/chat/completions', groq, models),
     };
   }
   if (openai) {
+    const models = configured.length ? configured : ['gpt-4o-mini'];
     return {
       mode: 'live',
-      model: process.env.AI_FORMS_MODEL ?? 'gpt-4o-mini',
-      complete: openAiCompatible(
-        'https://api.openai.com/v1/chat/completions',
-        openai,
-        process.env.AI_FORMS_MODEL ?? 'gpt-4o-mini',
-      ),
+      model: models.join(' → '),
+      complete: openAiCompatible('https://api.openai.com/v1/chat/completions', openai, models),
     };
   }
   return { mode: 'offline', model: 'offline pattern matcher', complete: offlineComplete };
 }
 
-/** Any OpenAI-shaped chat endpoint. Kept in the app, never in the package. */
-function openAiCompatible(url: string, key: string, model: string): CompleteFn {
+/** How long ONE model may take before the next one is tried. */
+const TIMEOUT_MS = 30_000;
+
+/**
+ * Any OpenAI-shaped chat endpoint. Kept in the app, never in the package.
+ *
+ * Walks `models` in order and returns the first REAL answer — where "real"
+ * excludes a 200 carrying nothing. Each attempt gets its own deadline, because
+ * a shared one would be spent by the first model and leave the rest with an
+ * already-expired signal, which is worse than no deadline at all.
+ */
+function openAiCompatible(url: string, key: string, models: string[]): CompleteFn {
   return async ({ system, prompt, maxTokens, temperature }) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        temperature,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: prompt },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Provider returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const failures: string[] = [];
+
+    for (const model of models) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model,
+            max_tokens: maxTokens,
+            temperature,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+
+        if (!res.ok) {
+          // The BODY, not just the status. "429" alone cannot tell a momentary
+          // burst from a spent daily quota, and those want opposite reactions.
+          failures.push(`${model}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+          continue;
+        }
+
+        const json = await res.json();
+        const content = json.choices?.[0]?.message?.content ?? '';
+        if (content.trim() === '') {
+          failures.push(`${model}: 200 with empty content — the model produced no output`);
+          continue;
+        }
+        return content;
+      } catch (error) {
+        failures.push(`${model}: ${(error as Error).message}`);
+      }
     }
-    const json = await res.json();
-    return json.choices?.[0]?.message?.content ?? '';
+
+    // Name every attempt. A message about only the last one makes "the key is
+    // dead" and "one model id rotted" read identically.
+    throw new Error(`No model answered. Tried ${models.length}: ${failures.join(' | ')}`);
   };
 }
 
