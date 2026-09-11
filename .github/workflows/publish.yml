@@ -25,6 +25,18 @@ on:
     - cron: '17 * * * *'
   workflow_dispatch:
 
+# One merge starts this workflow TWICE: once from the push (the sweep merges
+# with a PAT, whose pushes do trigger workflows) and once from the sweep's
+# workflow_dispatch re-arm, seconds later. Two runs asking the registry the
+# same question at the same moment both hear "not published", both build, and
+# the one that publishes second gets E403 — a red run that means nothing is
+# wrong (bip-kit 0.2.6 and 0.2.7, 2026-09-11). Serialise them instead: the
+# second run waits, then finds the version on the registry and skips. Never
+# cancel — a cancelled publish is a half-shipped release.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -50,10 +62,12 @@ jobs:
         run: |
           name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if npm view "$name@$version" version >/dev/null 2>&1; then
             echo "→ $name@$version is already published; nothing to do."
             echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "✅ \`$name@$version\` is already published — nothing to do." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "→ $name@$version is not on the registry; releasing it."
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -69,8 +83,23 @@ jobs:
       # Auth is trusted publishing (OIDC): npm accepts this job's identity token
       # because the package's Trusted Publisher is pinned to exactly this repo
       # and workflow. No npm token exists anywhere, so none can leak or expire.
-      - if: steps.check.outputs.publish == 'true'
-        run: npm publish
+      - name: Publish to npm (OIDC, tokenless)
+        if: steps.check.outputs.publish == 'true'
+        env:
+          NAME: ${{ steps.check.outputs.name }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if npm publish; then
+            echo "🚀 Published \`$NAME@$VERSION\`." >> "$GITHUB_STEP_SUMMARY"
+          elif npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            # The check above and this publish are not atomic. If another run
+            # (a schedule tick, a hand dispatch) slipped between them, the
+            # version is on the registry — which is the goal state, not an error.
+            echo "→ $NAME@$VERSION was published by a concurrent run; nothing to do."
+            echo "✅ \`$NAME@$VERSION\` was published by a concurrent run — nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          else
+            exit 1
+          fi
 
       - name: Tag the released commit
         if: steps.check.outputs.publish == 'true'
