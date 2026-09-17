@@ -192,3 +192,9 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 ## License
 
 MIT
+
+---
+
+Part of **[bitbaum](https://bitbaum.orangecat.ch)** — AI-native products on open
+infrastructure, built in Zürich. Every package here lists the apps that use it:
+**[which apps use ai-forms](https://bitbaum.orangecat.ch/packages/#ai-forms)**.
