@@ -37,7 +37,7 @@ export default tseslint.config(
     // plugin installed that directive is itself an ESLint error ("rule not
     // found") — the comment was writing a cheque the config could not cash.
     // Installing it makes the suppression meaningful AND lints the hook.
-    files: ['src/react.ts'],
+    files: ['src/react.ts', 'src/assistant.tsx'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
   },

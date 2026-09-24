@@ -1,5 +1,5 @@
-import { runFormAssist, type FormTarget } from './assist.js';
-import type { AssistResult, CompleteFn } from './types.js';
+import { DEFAULT_MESSAGES, runFormAssist, runFormSuggest, type FormTarget } from './assist.js';
+import type { AssistMessages, AssistResult, CompleteFn, SuggestResult } from './types.js';
 
 export type AuthorizeResult = { ok: true } | { ok: false; status: number; error: string };
 
@@ -12,6 +12,14 @@ export interface FormAssistHandlerConfig {
   authorize?: (request: Request) => Promise<AuthorizeResult> | AuthorizeResult;
   /** Override to match a house response envelope. */
   respond?: (result: AssistResult) => Response;
+  /**
+   * Same, for `intent: "suggest"`. Separate so an existing `respond` written
+   * against AssistResult keeps compiling and never has to handle a shape it
+   * was not written for.
+   */
+  respondSuggest?: (result: SuggestResult) => Response;
+  /** User-facing copy in the app's language. Defaults to English. */
+  messages?: Partial<AssistMessages>;
 }
 
 /**
@@ -23,6 +31,8 @@ export function createFormAssistHandler(
 ): (request: Request) => Promise<Response> {
   const registry = new Map(config.targets.map((target) => [target.key, target]));
   const respond = config.respond ?? defaultRespond;
+  const respondSuggest = config.respondSuggest ?? defaultRespond;
+  const t: AssistMessages = { ...DEFAULT_MESSAGES, ...config.messages };
 
   return async function handle(request: Request): Promise<Response> {
     if (config.authorize) {
@@ -36,18 +46,31 @@ export function createFormAssistHandler(
     try {
       body = await request.json();
     } catch {
-      return respond({ ok: false, error: 'Expected a JSON body.' });
+      return respond({ ok: false, error: t.badBody });
     }
 
     if (body === null || typeof body !== 'object') {
-      return respond({ ok: false, error: 'Expected a JSON body.' });
+      return respond({ ok: false, error: t.badBody });
     }
     const payload = body as Record<string, unknown>;
 
     const targetKey = typeof payload['target'] === 'string' ? payload['target'] : '';
     const target: FormTarget | undefined = registry.get(targetKey);
     if (!target) {
-      return respond({ ok: false, error: `Unknown form "${targetKey}".` });
+      return respond({ ok: false, error: t.unknownForm(targetKey) });
+    }
+
+    // Same route, same registry, same authorize: a suggestion reads exactly
+    // the fields an edit may write, and nothing else.
+    if (payload['intent'] === 'suggest') {
+      return respondSuggest(
+        await runFormSuggest({
+          target,
+          values: isRecord(payload['values']) ? payload['values'] : {},
+          complete: config.complete,
+          messages: config.messages,
+        }),
+      );
     }
 
     const result = await runFormAssist({
@@ -61,6 +84,7 @@ export function createFormAssistHandler(
           typeof payload['pageContext'] === 'string' ? payload['pageContext'] : undefined,
       },
       complete: config.complete,
+      messages: config.messages,
     });
 
     return respond(result);
@@ -89,7 +113,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function defaultRespond(result: AssistResult): Response {
+function defaultRespond(result: AssistResult | SuggestResult): Response {
   return json(result, result.ok ? 200 : 400);
 }
 

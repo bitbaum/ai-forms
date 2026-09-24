@@ -135,18 +135,19 @@ const form = useAiForm({ target: 'goal', fields: GOAL_FORM.fields });
 <input value={form.text('title')} onChange={e => form.setValue('title', e.target.value)} />
 <textarea value={form.text('description')} onChange={e => form.setValue('description', e.target.value)} />
 
-<AiBar
-  busy={form.busy}
-  error={form.error}
-  onAsk={form.ask}          // fills an empty form, refines a filled one
-  onUndo={form.undo}
-  canUndo={form.canUndo}
+<AiFormAssistant
+  form={form}
+  suggestAfterFill                       // propose improvements right after a fill
+  labels={{ fillTitle: 'Mit KI ausfüllen', /* … your language */ }}
+  classNames={{ root: 'card', textarea: 'input', submit: 'btn-primary', suggestion: 'chip' }}
 />
 ```
 
 **The hook owns form state.** That is the point: the user and the assistant write to the same store, which is what makes "now change the date" work at all. Forms adopting this usually get *shorter*, because a `useState` per field collapses into one.
 
-Rendering is yours. The package ships no markup and no classes — each app has its own design token SSOT, and a package that shipped styled components would fight all of them.
+**One assistant control for every app.** `AiFormAssistant` is the behaviour — fill, change, undo, "N fields updated", suggestions — with no styling: each app has its own design-token SSOT, so you pass words (`labels`) and token classes (`classNames`). Improve the experience here and every adopter gets it on the next install; a hand-rolled bar per app is how the same fix used to be needed four times. Rendering your own around `useAiForm` still works.
+
+**What the assistant does once the form has content.** The same box takes three kinds of input: a change ("shorter", "write the description"), more information (paste the advert — empty fields fill, filled ones are left alone), or nothing at all — *Suggest improvements* asks the model what it would change, and each suggestion is one tap that runs as an ordinary refine, with undo. Facts (dates, numbers, contacts) are never invented; prose you ask for is written.
 
 ---
 
@@ -169,7 +170,11 @@ Rendering is yours. The package ships no markup and no classes — each app has 
 
 ### `ai-forms/react`
 
-`useAiForm(options)` → values, `setValue`, `ask` / `fill` / `refine`, `busy`, `error`, `transcript`, `changed`, `isAiTouched`, `undo`, `canUndo`, `reset`.
+`useAiForm(options)` → values, `setValue`, `ask` / `fill` / `refine`, `busy`, `error`, `transcript`, `changed`, `isAiTouched`, `undo`, `canUndo`, `reset`, `suggest` / `suggestions` / `suggesting` / `applySuggestion`.
+
+`AiFormAssistant({ form, labels?, classNames?, icon?, suggestAfterFill? })` — the shared control described above.
+
+User-facing errors are English by default; pass `messages` to `createFormAssistHandler` (or per form on the `FormTarget`) to speak the app's language. `intent: "suggest"` goes to the same route; `respondSuggest` customises its envelope.
 
 `readPageContext(selector?, maxChars?)` reads rendered text from the page, so a page-aware assistant can only claim to see what is actually on screen.
 

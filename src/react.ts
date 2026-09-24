@@ -1,6 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { emptyValues } from './fields.js';
-import type { AssistIntent, AssistResult, AssistTurn, FieldSpec } from './types.js';
+import type {
+  AssistIntent,
+  AssistResult,
+  AssistTurn,
+  FieldSpec,
+  FormSuggestion,
+  SuggestResult,
+} from './types.js';
 
 export const DEFAULT_ENDPOINT = '/api/ai/form-assist';
 
@@ -48,6 +55,17 @@ export interface UseAiForm {
   canUndo: boolean;
   /** Whether any field currently holds a value. */
   isEmpty: boolean;
+
+  /**
+   * Ask the assistant what it would improve in the form as it stands. Changes
+   * nothing by itself; the result lands in `suggestions`.
+   */
+  suggest: () => Promise<SuggestResult>;
+  /** Proposals from the last `suggest()`, cleared once the form changes under them. */
+  suggestions: readonly FormSuggestion[];
+  suggesting: boolean;
+  /** Apply one proposal — a `refine` with its instruction, so undo covers it. */
+  applySuggestion: (suggestion: FormSuggestion) => Promise<AssistResult>;
 }
 
 export function useAiForm(options: UseAiFormOptions): UseAiForm {
@@ -69,11 +87,17 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
   const [touched, setTouched] = useState<readonly string[]>([]);
   const history = useRef<Record<string, unknown>[]>([]);
   const [canUndo, setCanUndo] = useState(false);
+  const [suggestions, setSuggestions] = useState<readonly FormSuggestion[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
 
   const isEmpty = useMemo(() => !Object.values(values).some(hasContent), [values]);
 
+  // A suggestion describes the form it was made for. Once the user edits a
+  // field it may no longer apply, so it goes rather than lingering as advice
+  // about text that is not there any more.
   const setValue = useCallback((name: string, value: unknown) => {
     setValuesState((current) => ({ ...current, [name]: value }));
+    setSuggestions([]);
   }, []);
 
   const setValues = useCallback((next: Record<string, unknown>) => {
@@ -119,6 +143,9 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
 
       setBusy(true);
       setError(null);
+      // "1 field updated" belongs to the previous turn; left standing, it sits
+      // next to this turn's error and the two contradict each other.
+      setChanged([]);
       const priorTranscript = transcript;
       setTranscript((current) => [...current, { role: 'user', text: trimmed }]);
 
@@ -147,6 +174,7 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
         history.current.push(values);
         setCanUndo(true);
         setValuesState(result.values);
+        setSuggestions([]);
         setChanged(result.changed);
         setTouched((current) => Array.from(new Set([...current, ...result.changed])));
         setTranscript((current) => [...current, { role: 'assistant', text: result.message }]);
@@ -171,6 +199,37 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
     [isEmpty, run],
   );
 
+  const suggest = useCallback(async (): Promise<SuggestResult> => {
+    setSuggesting(true);
+    setError(null);
+    try {
+      const response = await doFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, intent: 'suggest', values }),
+      });
+      const result = (await response.json()) as SuggestResult;
+      if (result.ok) {
+        setSuggestions(result.suggestions);
+      } else {
+        setSuggestions([]);
+        setError(result.error);
+      }
+      return result;
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Could not reach the assistant.';
+      setError(message);
+      return { ok: false, error: message };
+    } finally {
+      setSuggesting(false);
+    }
+  }, [doFetch, endpoint, target, values]);
+
+  const applySuggestion = useCallback(
+    (suggestion: FormSuggestion) => run(suggestion.instruction, 'refine'),
+    [run],
+  );
+
   const isAiTouched = useCallback((name: string) => touched.includes(name), [touched]);
 
   return {
@@ -190,6 +249,10 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
     undo,
     canUndo,
     isEmpty,
+    suggest,
+    suggestions,
+    suggesting,
+    applySuggestion,
   };
 }
 
@@ -216,3 +279,10 @@ export function readPageContext(selector = 'main', maxChars = 1800): string | un
   const text = (root as HTMLElement).innerText?.replace(/\s+\n/g, '\n').trim();
   return text ? text.slice(0, maxChars) : undefined;
 }
+
+export { AiFormAssistant, DEFAULT_ASSISTANT_LABELS } from './assistant.js';
+export type {
+  AiFormAssistantClassNames,
+  AiFormAssistantLabels,
+  AiFormAssistantProps,
+} from './assistant.js';

@@ -1,4 +1,4 @@
-import type { AssistIntent, AssistTurn, FieldSpec } from './types.js';
+import type { AssistIntent, AssistTurn, FieldSpec, FormSuggestion } from './types.js';
 
 /** Render one field the way the model needs to see it: name, type, rules, examples. */
 function describeField(field: FieldSpec): string {
@@ -79,15 +79,29 @@ export function buildSystemPrompt(target: string, intent: AssistIntent): string 
     'Rules:',
     '- Only use field names from the list you are given. Never invent fields.',
     '- Obey every stated type and constraint exactly.',
-    '- Omit a field entirely rather than guessing a value you have no basis for.',
+    '- Facts (names, dates, numbers, amounts, places, contacts, requirements) come only',
+    '  from what the user wrote or what the form already holds. Never invent one; omit',
+    '  the field instead.',
+    '- Free-text fields (longer text) are prose, not facts. When the user asks you to',
+    '  write one, write it: draft it from everything the form and the conversation',
+    '  already say, without adding facts that appear nowhere. Refusing to write a',
+    '  requested description is a failure, not caution.',
     '- Never put a placeholder, a TODO, or the word "unknown" in a value.',
-    '- "message" describes what you did in plain language, addressed to the user.',
+    '- "message" describes what you did in plain language, addressed to the user, in',
+    "  the user's language.",
   ];
 
   if (intent === 'refine') {
+    // Refine is what the form is in after the first word is typed, so it must
+    // also take new information: a user who typed a title and then pastes the
+    // advert expects the empty fields to fill, not "Nothing changed".
     return [
       ...shared,
-      '- The form already has values. Return ONLY the fields the user asked you to change.',
+      '- The form already has some values. Return:',
+      '  1. the fields the user asked you to change, and',
+      "  2. any field that is EMPTY right now which the user's message gives you",
+      '     information for (e.g. they pasted a description or an advert).',
+      '- Never return a field that already has a value unless the user asked to change it.',
       '- Leave every other field out of "values" so it keeps its current value.',
       '- Apply the change literally. If asked to shorten, return a shorter version of the',
       '  existing text — do not write something new on the same topic.',
@@ -99,6 +113,64 @@ export function buildSystemPrompt(target: string, intent: AssistIntent): string 
     '- Fill in as many fields as the description genuinely supports.',
     "- Prefer the user's own words for titles and descriptions over marketing phrasing.",
   ].join('\n');
+}
+
+/** Most suggestions worth showing at once — past this they stop being read. */
+export const MAX_SUGGESTIONS = 4;
+
+/**
+ * Review a filled form and propose changes the user can accept with one tap.
+ * Each suggestion's `instruction` is fed back through `refine` verbatim, so it
+ * must be a change request, not a comment.
+ */
+export function buildSuggestSystemPrompt(target: string): string {
+  return [
+    `You review a "${target}" form someone has filled in, and propose improvements they`,
+    'can accept with one tap.',
+    '',
+    'Reply with a single JSON object and nothing else:',
+    '{ "suggestions": [ { "label": "<button text>", "instruction": "<change request>" } ] }',
+    '',
+    'Rules:',
+    `- At most ${MAX_SUGGESTIONS} suggestions, most useful first. An empty list is a valid`,
+    '  answer when the form is already good.',
+    '- "label" is at most 6 words, in the language the form is written in.',
+    '- "instruction" is a concrete change another assistant will apply to this form,',
+    '  naming the field(s), e.g. "Write the description in 3 short sentences from the',
+    '  title and schedule". Never a question, never a remark.',
+    '- Good suggestions: write an empty free-text field from what the form already says;',
+    '  make vague or overlong text clearer; fix a contradiction between fields; set a',
+    '  choice field that the text already implies.',
+    '- Never suggest inventing a fact the form does not contain (a date, a number, a',
+    '  contact, a price). A missing fact is for the user to supply, not for you.',
+    '- Never suggest a change to a field that is not in the list you are given.',
+  ].join('\n');
+}
+
+/** Pull `{ suggestions: [...] }` out of a completion; drops malformed items. */
+export function parseSuggestResponse(content: string): FormSuggestion[] | null {
+  const parsed = parseAssistResponse(content);
+  if (!parsed) {
+    return null;
+  }
+  // With no "values" key, parseAssistResponse hands back the whole object as
+  // `values` — which is where the top-level "suggestions" array then sits.
+  const record = parsed.values as Record<string, unknown> | null;
+  const raw = record && typeof record === 'object' ? record['suggestions'] : undefined;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const out: FormSuggestion[] = [];
+  for (const item of raw) {
+    if (item === null || typeof item !== 'object') continue;
+    const label = (item as Record<string, unknown>)['label'];
+    const instruction = (item as Record<string, unknown>)['instruction'];
+    if (typeof label !== 'string' || typeof instruction !== 'string') continue;
+    if (label.trim() === '' || instruction.trim() === '') continue;
+    out.push({ label: label.trim().slice(0, 80), instruction: instruction.trim().slice(0, 500) });
+    if (out.length === MAX_SUGGESTIONS) break;
+  }
+  return out;
 }
 
 export function buildUserPrompt(input: {

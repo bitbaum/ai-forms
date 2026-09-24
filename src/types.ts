@@ -96,6 +96,39 @@ export interface AssistFailure {
 export type AssistResult = AssistSuccess | AssistFailure;
 
 /**
+ * Every sentence this package can say to an end user. The defaults are English;
+ * an app whose UI is in another language passes its own, because an English
+ * error inside a German form reads as "something broke", not as guidance.
+ */
+export interface AssistMessages {
+  tooShort: (intent: AssistIntent, minLength: number) => string;
+  noFields: string;
+  unavailable: string;
+  unreadable: string;
+  nothingChanged: (intent: AssistIntent) => string;
+  /** Fallback transcript line when the model returns values but no sentence. */
+  updated: (labels: readonly string[]) => string;
+  badBody: string;
+  unknownForm: (key: string) => string;
+  /** `suggest` on a form with nothing in it — there is nothing to improve yet. */
+  nothingToReview: string;
+  /** `suggest` found the form in good shape. */
+  noSuggestions: string;
+}
+
+/**
+ * One improvement the assistant proposes for a filled form. `label` is what the
+ * user taps; `instruction` is the refine request that tapping sends, so applying
+ * a suggestion is exactly the same path as typing that change yourself.
+ */
+export interface FormSuggestion {
+  label: string;
+  instruction: string;
+}
+
+export type SuggestResult = { ok: true; suggestions: FormSuggestion[] } | AssistFailure;
+
+/**
  * The single seam between this package and any LLM provider. Apps pass their
  * own caller (Groq, OpenRouter, a BYOK chain) so the package never owns keys,
  * models, budgets, or fallback policy.

@@ -7,6 +7,8 @@ import {
   sanitizeValues,
   parseAssistResponse,
   runFormAssist,
+  runFormSuggest,
+  parseSuggestResponse,
   MIN_INSTRUCTION_LENGTH,
 } from '../dist/index.js';
 import { createFormAssistHandler } from '../dist/server.js';
@@ -229,4 +231,143 @@ test('the handler runs authorize before touching the model', async () => {
   );
   assert.equal(response.status, 401);
   assert.equal(called, false, 'an unauthorised request must not reach the provider');
+});
+
+test('refine may fill empty fields from new information, not only named ones', async () => {
+  // A user who typed a title and then pasted the advert: the form is no longer
+  // empty, so this is a refine — and it must still land in the gaps.
+  let seenSystem = '';
+  const result = await runFormAssist({
+    target: TARGET,
+    request: {
+      intent: 'refine',
+      instruction: 'Bike repair, three hours a week, starts 2026-10-01',
+      values: { title: 'Bikes', description: '' },
+    },
+    complete: async ({ system }) => {
+      seenSystem = system;
+      return JSON.stringify({ values: { effort: 3, due: '2026-10-01' }, message: 'Filled.' });
+    },
+  });
+  assert.match(seenSystem, /EMPTY right now/);
+  assert.equal(result.ok, true);
+  assert.equal(result.values.title, 'Bikes');
+  assert.deepEqual([...result.changed].sort(), ['due', 'effort']);
+});
+
+test('the model is told to write requested prose, and never to invent facts', async () => {
+  let seenSystem = '';
+  await runFormAssist({
+    target: TARGET,
+    request: { intent: 'refine', instruction: 'write the description', values: { title: 'X' } },
+    complete: async ({ system }) => {
+      seenSystem = system;
+      return JSON.stringify({ values: { description: 'About X.' } });
+    },
+  });
+  assert.match(seenSystem, /Refusing to write a\s+requested description is a failure/);
+  assert.match(seenSystem, /Never invent one/);
+});
+
+test('user-facing copy can be replaced per app and per form', async () => {
+  const german = {
+    nothingChanged: () => 'Nichts geändert.',
+    updated: (labels) => `${labels.join(', ')} aktualisiert.`,
+  };
+  const unchanged = await runFormAssist({
+    target: TARGET,
+    request: { intent: 'refine', instruction: 'change it', values: { title: 'Same' } },
+    complete: completeWith({ values: { title: 'Same' } }),
+    messages: german,
+  });
+  assert.equal(unchanged.error, 'Nichts geändert.');
+
+  const perForm = await runFormAssist({
+    target: { ...TARGET, messages: { updated: () => 'Form wins.' } },
+    request: { intent: 'fill', instruction: 'a demo item about bikes', values: {} },
+    complete: completeWith({ values: { title: 'Bikes' } }),
+    messages: german,
+  });
+  assert.equal(perForm.message, 'Form wins.');
+
+  const handler = createFormAssistHandler({
+    targets: [TARGET],
+    complete: completeWith({}),
+    messages: { unknownForm: (key) => `Unbekanntes Formular «${key}».` },
+  });
+  const response = await handler(
+    new Request('http://localhost/x', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'nope', instruction: 'whatever long enough' }),
+    }),
+  );
+  assert.equal((await response.json()).error, 'Unbekanntes Formular «nope».');
+});
+
+test('suggest proposes changes for a filled form and changes nothing itself', async () => {
+  let seen = { system: '', prompt: '' };
+  const result = await runFormSuggest({
+    target: TARGET,
+    values: { title: 'Bike repair', description: '', ownerId: 'u_secret' },
+    complete: async (input) => {
+      seen = input;
+      return JSON.stringify({
+        suggestions: [
+          { label: 'Write description', instruction: 'Write the description from the title' },
+          { label: '', instruction: 'dropped: no label' },
+          { label: 'x', instruction: 'a' },
+          { label: 'y', instruction: 'b' },
+          { label: 'z', instruction: 'c' },
+          { label: 'over the cap', instruction: 'd' },
+        ],
+      });
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.suggestions.length, 4, 'capped, malformed items dropped');
+  assert.equal(result.suggestions[0].instruction, 'Write the description from the title');
+  assert.match(seen.system, /Never suggest inventing a fact/);
+  assert.doesNotMatch(seen.prompt, /u_secret/, 'excluded fields never reach the model');
+});
+
+test('suggest refuses an empty form rather than spending a model call', async () => {
+  let called = false;
+  const result = await runFormSuggest({
+    target: TARGET,
+    values: { title: '', ownerId: 'only-excluded-has-content' },
+    complete: async () => {
+      called = true;
+      return '{}';
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(called, false);
+});
+
+test('parseSuggestResponse accepts an empty list and rejects a non-list', () => {
+  assert.deepEqual(parseSuggestResponse('{"suggestions": []}'), []);
+  assert.equal(parseSuggestResponse('{"values": {"title": "x"}}'), null);
+});
+
+test('the handler routes intent "suggest" through the same registry and authorize', async () => {
+  let authorized = 0;
+  const handler = createFormAssistHandler({
+    targets: [TARGET],
+    authorize: () => {
+      authorized += 1;
+      return { ok: true };
+    },
+    complete: completeWith({ suggestions: [{ label: 'Shorter', instruction: 'Shorten it' }] }),
+  });
+  const response = await handler(
+    new Request('http://localhost/x', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'demo', intent: 'suggest', values: { title: 'A' } }),
+    }),
+  );
+  assert.equal(authorized, 1);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    suggestions: [{ label: 'Shorter', instruction: 'Shorten it' }],
+  });
 });
