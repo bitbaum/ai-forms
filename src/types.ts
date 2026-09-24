@@ -110,7 +110,23 @@ export interface AssistMessages {
   updated: (labels: readonly string[]) => string;
   badBody: string;
   unknownForm: (key: string) => string;
+  /** `suggest` on a form with nothing in it — there is nothing to improve yet. */
+  nothingToReview: string;
+  /** `suggest` found the form in good shape. */
+  noSuggestions: string;
 }
+
+/**
+ * One improvement the assistant proposes for a filled form. `label` is what the
+ * user taps; `instruction` is the refine request that tapping sends, so applying
+ * a suggestion is exactly the same path as typing that change yourself.
+ */
+export interface FormSuggestion {
+  label: string;
+  instruction: string;
+}
+
+export type SuggestResult = { ok: true; suggestions: FormSuggestion[] } | AssistFailure;
 
 /**
  * The single seam between this package and any LLM provider. Apps pass their

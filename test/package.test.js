@@ -37,9 +37,17 @@ const PUBLIC_API = {
     'runFormAssist',
     'MIN_INSTRUCTION_LENGTH',
     'DEFAULT_MESSAGES',
+    'runFormSuggest',
+    'parseSuggestResponse',
   ],
   './server': ['createFormAssistHandler'],
-  './react': ['useAiForm', 'readPageContext', 'DEFAULT_ENDPOINT'],
+  './react': [
+    'useAiForm',
+    'readPageContext',
+    'DEFAULT_ENDPOINT',
+    'AiFormAssistant',
+    'DEFAULT_ASSISTANT_LABELS',
+  ],
 };
 
 let workspace;

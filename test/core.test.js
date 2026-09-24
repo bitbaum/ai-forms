@@ -7,6 +7,8 @@ import {
   sanitizeValues,
   parseAssistResponse,
   runFormAssist,
+  runFormSuggest,
+  parseSuggestResponse,
   MIN_INSTRUCTION_LENGTH,
 } from '../dist/index.js';
 import { createFormAssistHandler } from '../dist/server.js';
@@ -300,4 +302,72 @@ test('user-facing copy can be replaced per app and per form', async () => {
     }),
   );
   assert.equal((await response.json()).error, 'Unbekanntes Formular «nope».');
+});
+
+test('suggest proposes changes for a filled form and changes nothing itself', async () => {
+  let seen = { system: '', prompt: '' };
+  const result = await runFormSuggest({
+    target: TARGET,
+    values: { title: 'Bike repair', description: '', ownerId: 'u_secret' },
+    complete: async (input) => {
+      seen = input;
+      return JSON.stringify({
+        suggestions: [
+          { label: 'Write description', instruction: 'Write the description from the title' },
+          { label: '', instruction: 'dropped: no label' },
+          { label: 'x', instruction: 'a' },
+          { label: 'y', instruction: 'b' },
+          { label: 'z', instruction: 'c' },
+          { label: 'over the cap', instruction: 'd' },
+        ],
+      });
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.suggestions.length, 4, 'capped, malformed items dropped');
+  assert.equal(result.suggestions[0].instruction, 'Write the description from the title');
+  assert.match(seen.system, /Never suggest inventing a fact/);
+  assert.doesNotMatch(seen.prompt, /u_secret/, 'excluded fields never reach the model');
+});
+
+test('suggest refuses an empty form rather than spending a model call', async () => {
+  let called = false;
+  const result = await runFormSuggest({
+    target: TARGET,
+    values: { title: '', ownerId: 'only-excluded-has-content' },
+    complete: async () => {
+      called = true;
+      return '{}';
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(called, false);
+});
+
+test('parseSuggestResponse accepts an empty list and rejects a non-list', () => {
+  assert.deepEqual(parseSuggestResponse('{"suggestions": []}'), []);
+  assert.equal(parseSuggestResponse('{"values": {"title": "x"}}'), null);
+});
+
+test('the handler routes intent "suggest" through the same registry and authorize', async () => {
+  let authorized = 0;
+  const handler = createFormAssistHandler({
+    targets: [TARGET],
+    authorize: () => {
+      authorized += 1;
+      return { ok: true };
+    },
+    complete: completeWith({ suggestions: [{ label: 'Shorter', instruction: 'Shorten it' }] }),
+  });
+  const response = await handler(
+    new Request('http://localhost/x', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'demo', intent: 'suggest', values: { title: 'A' } }),
+    }),
+  );
+  assert.equal(authorized, 1);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    suggestions: [{ label: 'Shorter', instruction: 'Shorten it' }],
+  });
 });

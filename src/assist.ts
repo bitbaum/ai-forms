@@ -1,6 +1,13 @@
 import { assistableFields, redactExcluded } from './fields.js';
 import { mergeValues } from './merge.js';
-import { buildSystemPrompt, buildUserPrompt, parseAssistResponse } from './prompt.js';
+import {
+  buildSuggestSystemPrompt,
+  buildSystemPrompt,
+  buildUserPrompt,
+  describeFields,
+  parseAssistResponse,
+  parseSuggestResponse,
+} from './prompt.js';
 import { sanitizeValues } from './sanitize.js';
 import type {
   AssistIntent,
@@ -9,6 +16,7 @@ import type {
   AssistResult,
   CompleteFn,
   FieldSpec,
+  SuggestResult,
 } from './types.js';
 
 /** A form the assistant is allowed to operate on. Registered server-side. */
@@ -44,6 +52,8 @@ export const DEFAULT_MESSAGES: AssistMessages = {
       : `Updated ${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}.`,
   badBody: 'Expected a JSON body.',
   unknownForm: (key) => `Unknown form "${key}".`,
+  nothingToReview: 'Fill something in first — there is nothing to review yet.',
+  noSuggestions: 'Nothing to suggest — the form looks good.',
 };
 
 /**
@@ -130,4 +140,57 @@ export async function runFormAssist(input: {
       parsed.message.trim() ||
       t.updated(changed.map((name) => target.fields.find((f) => f.name === name)?.label ?? name)),
   };
+}
+
+/**
+ * Propose improvements to a form that already has content. Changes nothing:
+ * the user picks a suggestion, and its `instruction` goes through `refine`
+ * like anything they typed, with the same undo.
+ */
+export async function runFormSuggest(input: {
+  target: FormTarget;
+  values: Record<string, unknown>;
+  complete: CompleteFn;
+  messages?: Partial<AssistMessages>;
+}): Promise<SuggestResult> {
+  const { target, complete } = input;
+  const t: AssistMessages = { ...DEFAULT_MESSAGES, ...input.messages, ...target.messages };
+
+  const fields = assistableFields(target.fields);
+  if (fields.length === 0) {
+    return { ok: false, error: t.noFields };
+  }
+  const values = redactExcluded(input.values, target.fields);
+  if (!Object.values(values).some(isFilled)) {
+    return { ok: false, error: t.nothingToReview };
+  }
+
+  const parts = [`Form: ${target.name}`, '', 'Fields:', describeFields(fields)];
+  if (target.instructions && target.instructions.length > 0) {
+    parts.push('', 'Rules for this form:', target.instructions.map((l) => `- ${l}`).join('\n'));
+  }
+  parts.push('', 'Current values:', JSON.stringify(values, null, 2));
+
+  let content: string;
+  try {
+    content = await complete({
+      system: buildSuggestSystemPrompt(target.name),
+      prompt: parts.join('\n'),
+      maxTokens: 800,
+      temperature: 0.3,
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : t.unavailable };
+  }
+
+  const suggestions = parseSuggestResponse(content);
+  if (!suggestions) {
+    return { ok: false, error: t.unreadable };
+  }
+  return { ok: true, suggestions };
+}
+
+function isFilled(value: unknown): boolean {
+  if (value === '' || value === null || value === undefined) return false;
+  return Array.isArray(value) ? value.length > 0 : true;
 }
