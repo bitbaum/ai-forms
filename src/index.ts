@@ -1,6 +1,7 @@
 export type {
   AssistFailure,
   AssistIntent,
+  AssistMessages,
   AssistRequest,
   AssistResult,
   AssistSuccess,
@@ -24,5 +25,5 @@ export {
 } from './prompt.js';
 export type { ParsedAssistResponse } from './prompt.js';
 
-export { runFormAssist, MIN_INSTRUCTION_LENGTH } from './assist.js';
+export { runFormAssist, MIN_INSTRUCTION_LENGTH, DEFAULT_MESSAGES } from './assist.js';
 export type { FormTarget } from './assist.js';

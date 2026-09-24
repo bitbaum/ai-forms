@@ -96,6 +96,23 @@ export interface AssistFailure {
 export type AssistResult = AssistSuccess | AssistFailure;
 
 /**
+ * Every sentence this package can say to an end user. The defaults are English;
+ * an app whose UI is in another language passes its own, because an English
+ * error inside a German form reads as "something broke", not as guidance.
+ */
+export interface AssistMessages {
+  tooShort: (intent: AssistIntent, minLength: number) => string;
+  noFields: string;
+  unavailable: string;
+  unreadable: string;
+  nothingChanged: (intent: AssistIntent) => string;
+  /** Fallback transcript line when the model returns values but no sentence. */
+  updated: (labels: readonly string[]) => string;
+  badBody: string;
+  unknownForm: (key: string) => string;
+}
+
+/**
  * The single seam between this package and any LLM provider. Apps pass their
  * own caller (Groq, OpenRouter, a BYOK chain) so the package never owns keys,
  * models, budgets, or fallback policy.

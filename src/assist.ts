@@ -2,7 +2,14 @@ import { assistableFields, redactExcluded } from './fields.js';
 import { mergeValues } from './merge.js';
 import { buildSystemPrompt, buildUserPrompt, parseAssistResponse } from './prompt.js';
 import { sanitizeValues } from './sanitize.js';
-import type { AssistIntent, AssistRequest, AssistResult, CompleteFn, FieldSpec } from './types.js';
+import type {
+  AssistIntent,
+  AssistMessages,
+  AssistRequest,
+  AssistResult,
+  CompleteFn,
+  FieldSpec,
+} from './types.js';
 
 /** A form the assistant is allowed to operate on. Registered server-side. */
 export interface FormTarget {
@@ -15,7 +22,29 @@ export interface FormTarget {
   instructions?: readonly string[];
   maxTokens?: number;
   temperature?: number;
+  /** Per-form copy overrides; wins over the handler's `messages`. */
+  messages?: Partial<AssistMessages>;
 }
+
+export const DEFAULT_MESSAGES: AssistMessages = {
+  tooShort: (intent, minLength) =>
+    intent === 'refine'
+      ? `Describe the change you want (at least ${minLength} characters).`
+      : `Describe what you want in a bit more detail (at least ${minLength} characters).`,
+  noFields: 'This form has no fields the assistant may edit.',
+  unavailable: 'The assistant is unavailable right now.',
+  unreadable: "Could not read the assistant's reply. Try rephrasing.",
+  nothingChanged: (intent) =>
+    intent === 'refine'
+      ? 'Nothing changed — try naming the field you want changed.'
+      : 'Nothing could be filled in from that. Try describing it differently.',
+  updated: (labels) =>
+    labels.length === 1
+      ? `Updated ${labels[0]}.`
+      : `Updated ${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}.`,
+  badBody: 'Expected a JSON body.',
+  unknownForm: (key) => `Unknown form "${key}".`,
+};
 
 /**
  * Shortest instruction worth sending, per intent. A refine instruction is
@@ -36,25 +65,22 @@ export async function runFormAssist(input: {
   target: FormTarget;
   request: Omit<AssistRequest, 'target'>;
   complete: CompleteFn;
+  /** App-wide copy; `target.messages` overrides it per form. */
+  messages?: Partial<AssistMessages>;
 }): Promise<AssistResult> {
   const { target, request, complete } = input;
+  const t: AssistMessages = { ...DEFAULT_MESSAGES, ...input.messages, ...target.messages };
   const intent: AssistIntent = request.intent === 'refine' ? 'refine' : 'fill';
   const instruction = (request.instruction ?? '').trim();
 
   const minLength = MIN_INSTRUCTION_LENGTH[intent];
   if (instruction.length < minLength) {
-    return {
-      ok: false,
-      error:
-        intent === 'refine'
-          ? `Describe the change you want (at least ${minLength} characters).`
-          : `Describe what you want in a bit more detail (at least ${minLength} characters).`,
-    };
+    return { ok: false, error: t.tooShort(intent, minLength) };
   }
 
   const fields = assistableFields(target.fields);
   if (fields.length === 0) {
-    return { ok: false, error: 'This form has no fields the assistant may edit.' };
+    return { ok: false, error: t.noFields };
   }
 
   const values = request.values ?? {};
@@ -80,42 +106,28 @@ export async function runFormAssist(input: {
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : 'The assistant is unavailable right now.',
+      error: error instanceof Error ? error.message : t.unavailable,
     };
   }
 
   const parsed = parseAssistResponse(content);
   if (!parsed) {
-    return { ok: false, error: "Could not read the assistant's reply. Try rephrasing." };
+    return { ok: false, error: t.unreadable };
   }
 
   const aiValues = sanitizeValues(parsed.values, target.fields);
   const { values: merged, changed } = mergeValues(aiValues, values, intent, target.fields);
 
   if (changed.length === 0) {
-    return {
-      ok: false,
-      error:
-        intent === 'refine'
-          ? 'Nothing changed — try naming the field you want changed.'
-          : 'Nothing could be filled in from that. Try describing it differently.',
-    };
+    return { ok: false, error: t.nothingChanged(intent) };
   }
 
   return {
     ok: true,
     values: merged,
     changed,
-    message: parsed.message.trim() || describeChange(changed, target.fields),
+    message:
+      parsed.message.trim() ||
+      t.updated(changed.map((name) => target.fields.find((f) => f.name === name)?.label ?? name)),
   };
-}
-
-/** Honest fallback when the model returns values but no sentence. */
-function describeChange(changed: readonly string[], fields: readonly FieldSpec[]): string {
-  const labels = changed.map((name) => fields.find((f) => f.name === name)?.label ?? name);
-  if (labels.length === 1) {
-    return `Updated ${labels[0]}.`;
-  }
-  const last = labels[labels.length - 1];
-  return `Updated ${labels.slice(0, -1).join(', ')} and ${last}.`;
 }

@@ -119,6 +119,9 @@ export function useAiForm(options: UseAiFormOptions): UseAiForm {
 
       setBusy(true);
       setError(null);
+      // "1 field updated" belongs to the previous turn; left standing, it sits
+      // next to this turn's error and the two contradict each other.
+      setChanged([]);
       const priorTranscript = transcript;
       setTranscript((current) => [...current, { role: 'user', text: trimmed }]);
 

@@ -230,3 +230,74 @@ test('the handler runs authorize before touching the model', async () => {
   assert.equal(response.status, 401);
   assert.equal(called, false, 'an unauthorised request must not reach the provider');
 });
+
+test('refine may fill empty fields from new information, not only named ones', async () => {
+  // A user who typed a title and then pasted the advert: the form is no longer
+  // empty, so this is a refine — and it must still land in the gaps.
+  let seenSystem = '';
+  const result = await runFormAssist({
+    target: TARGET,
+    request: {
+      intent: 'refine',
+      instruction: 'Bike repair, three hours a week, starts 2026-10-01',
+      values: { title: 'Bikes', description: '' },
+    },
+    complete: async ({ system }) => {
+      seenSystem = system;
+      return JSON.stringify({ values: { effort: 3, due: '2026-10-01' }, message: 'Filled.' });
+    },
+  });
+  assert.match(seenSystem, /EMPTY right now/);
+  assert.equal(result.ok, true);
+  assert.equal(result.values.title, 'Bikes');
+  assert.deepEqual([...result.changed].sort(), ['due', 'effort']);
+});
+
+test('the model is told to write requested prose, and never to invent facts', async () => {
+  let seenSystem = '';
+  await runFormAssist({
+    target: TARGET,
+    request: { intent: 'refine', instruction: 'write the description', values: { title: 'X' } },
+    complete: async ({ system }) => {
+      seenSystem = system;
+      return JSON.stringify({ values: { description: 'About X.' } });
+    },
+  });
+  assert.match(seenSystem, /Refusing to write a\s+requested description is a failure/);
+  assert.match(seenSystem, /Never invent one/);
+});
+
+test('user-facing copy can be replaced per app and per form', async () => {
+  const german = {
+    nothingChanged: () => 'Nichts geändert.',
+    updated: (labels) => `${labels.join(', ')} aktualisiert.`,
+  };
+  const unchanged = await runFormAssist({
+    target: TARGET,
+    request: { intent: 'refine', instruction: 'change it', values: { title: 'Same' } },
+    complete: completeWith({ values: { title: 'Same' } }),
+    messages: german,
+  });
+  assert.equal(unchanged.error, 'Nichts geändert.');
+
+  const perForm = await runFormAssist({
+    target: { ...TARGET, messages: { updated: () => 'Form wins.' } },
+    request: { intent: 'fill', instruction: 'a demo item about bikes', values: {} },
+    complete: completeWith({ values: { title: 'Bikes' } }),
+    messages: german,
+  });
+  assert.equal(perForm.message, 'Form wins.');
+
+  const handler = createFormAssistHandler({
+    targets: [TARGET],
+    complete: completeWith({}),
+    messages: { unknownForm: (key) => `Unbekanntes Formular «${key}».` },
+  });
+  const response = await handler(
+    new Request('http://localhost/x', {
+      method: 'POST',
+      body: JSON.stringify({ target: 'nope', instruction: 'whatever long enough' }),
+    }),
+  );
+  assert.equal((await response.json()).error, 'Unbekanntes Formular «nope».');
+});

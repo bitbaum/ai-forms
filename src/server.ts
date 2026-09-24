@@ -1,5 +1,5 @@
-import { runFormAssist, type FormTarget } from './assist.js';
-import type { AssistResult, CompleteFn } from './types.js';
+import { DEFAULT_MESSAGES, runFormAssist, type FormTarget } from './assist.js';
+import type { AssistMessages, AssistResult, CompleteFn } from './types.js';
 
 export type AuthorizeResult = { ok: true } | { ok: false; status: number; error: string };
 
@@ -12,6 +12,8 @@ export interface FormAssistHandlerConfig {
   authorize?: (request: Request) => Promise<AuthorizeResult> | AuthorizeResult;
   /** Override to match a house response envelope. */
   respond?: (result: AssistResult) => Response;
+  /** User-facing copy in the app's language. Defaults to English. */
+  messages?: Partial<AssistMessages>;
 }
 
 /**
@@ -23,6 +25,7 @@ export function createFormAssistHandler(
 ): (request: Request) => Promise<Response> {
   const registry = new Map(config.targets.map((target) => [target.key, target]));
   const respond = config.respond ?? defaultRespond;
+  const t: AssistMessages = { ...DEFAULT_MESSAGES, ...config.messages };
 
   return async function handle(request: Request): Promise<Response> {
     if (config.authorize) {
@@ -36,18 +39,18 @@ export function createFormAssistHandler(
     try {
       body = await request.json();
     } catch {
-      return respond({ ok: false, error: 'Expected a JSON body.' });
+      return respond({ ok: false, error: t.badBody });
     }
 
     if (body === null || typeof body !== 'object') {
-      return respond({ ok: false, error: 'Expected a JSON body.' });
+      return respond({ ok: false, error: t.badBody });
     }
     const payload = body as Record<string, unknown>;
 
     const targetKey = typeof payload['target'] === 'string' ? payload['target'] : '';
     const target: FormTarget | undefined = registry.get(targetKey);
     if (!target) {
-      return respond({ ok: false, error: `Unknown form "${targetKey}".` });
+      return respond({ ok: false, error: t.unknownForm(targetKey) });
     }
 
     const result = await runFormAssist({
@@ -61,6 +64,7 @@ export function createFormAssistHandler(
           typeof payload['pageContext'] === 'string' ? payload['pageContext'] : undefined,
       },
       complete: config.complete,
+      messages: config.messages,
     });
 
     return respond(result);

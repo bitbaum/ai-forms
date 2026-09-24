@@ -36,6 +36,7 @@ const PUBLIC_API = {
     'parseAssistResponse',
     'runFormAssist',
     'MIN_INSTRUCTION_LENGTH',
+    'DEFAULT_MESSAGES',
   ],
   './server': ['createFormAssistHandler'],
   './react': ['useAiForm', 'readPageContext', 'DEFAULT_ENDPOINT'],
