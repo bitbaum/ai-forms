@@ -12,7 +12,7 @@
 #      both in one atomic push,
 #   5. creates a GitHub release with generated notes.
 #
-# Consumers pick the tag up through Dependabot (`github:bitbaum/ai-forms#vX.Y.Z`),
+# Consumers pick the tag up through Dependabot (`github:bitbaum/{{name}}#vX.Y.Z`),
 # and publish.yml ships it to npm once npm publishing is switched on.
 #
 # WHY THE PUSH USES FLEET_PAT. A push made with GITHUB_TOKEN starts no workflow.
@@ -30,6 +30,7 @@
 # If main is ever protected against direct pushes, FLEET_PAT's identity must be
 # allowed to bypass it, or this fails at the push — after verify, before any
 # tag exists, so nothing half-ships.
+# prettier-ignore
 name: Release
 run-name: Release ${{ inputs.version != '' && format('v{0}', inputs.version) || inputs.bump }}
 
