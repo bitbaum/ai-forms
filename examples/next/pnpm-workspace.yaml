@@ -2,3 +2,8 @@
 # sharp is next/image's native binary - it must compile/download at install.
 allowBuilds:
   sharp: true
+
+overrides:
+  # Security floors (2026-10-30 dev-toolchain sweep): stay inside the
+  # major the parents already allow; pnpm does not re-resolve these on update.
+  'postcss@8': '^8.5.23'
