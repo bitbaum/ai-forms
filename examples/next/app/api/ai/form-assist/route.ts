@@ -1,4 +1,4 @@
-import { createFormAssistHandler } from 'ai-forms/server';
+import { createFormAssistHandler } from '@bitbaum/ai-forms/server';
 import { JOB_TARGET } from '@/lib/form';
 import { resolveComplete } from '@/lib/complete';
 

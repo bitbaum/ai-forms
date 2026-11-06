@@ -55,7 +55,7 @@ let probe;
 
 before(() => {
   workspace = mkdtempSync(path.join(tmpdir(), 'ai-forms-pack-'));
-  const installDir = path.join(workspace, 'node_modules', 'ai-forms');
+  const installDir = path.join(workspace, 'node_modules', '@bitbaum/ai-forms');
   mkdirSync(installDir, { recursive: true });
 
   const tarball = execFileSync('npm', ['pack', '--silent', '--pack-destination', workspace], {
@@ -74,7 +74,7 @@ before(() => {
     '--strip-components=1',
   ]);
 
-  // Runs from the temp workspace, so `ai-forms` resolves through node_modules
+  // Runs from the temp workspace, so `@bitbaum/ai-forms` resolves through node_modules
   // and the exports map exactly as it would in a consumer's project.
   // Every probe records failure as a value rather than throwing. A broken
   // exports map would otherwise take down the setup and fail every assertion
@@ -83,7 +83,7 @@ before(() => {
   writeFileSync(
     probeFile,
     `const SUBPATHS = ['.', './server', './react'];
-const specifierFor = sub => (sub === '.' ? 'ai-forms' : 'ai-forms/' + sub.slice(2));
+const specifierFor = sub => (sub === '.' ? '@bitbaum/ai-forms' : '@bitbaum/ai-forms/' + sub.slice(2));
 
 // React is an optional peer and may be absent here, so './react' is resolved
 // but never imported — that still proves the exports map and file exist.
@@ -160,7 +160,7 @@ test('the react entry point ships the exports it declares', () => {
 });
 
 test('every entry point ships the type declarations it advertises', () => {
-  const installDir = path.join(workspace, 'node_modules', 'ai-forms');
+  const installDir = path.join(workspace, 'node_modules', '@bitbaum/ai-forms');
   const manifest = JSON.parse(readFileSync(path.join(installDir, 'package.json'), 'utf8'));
 
   for (const [subpath, entry] of Object.entries(manifest.exports)) {
@@ -173,7 +173,7 @@ test('every entry point ships the type declarations it advertises', () => {
 });
 
 test('the tarball carries the documentation npm will render', () => {
-  const installDir = path.join(workspace, 'node_modules', 'ai-forms');
+  const installDir = path.join(workspace, 'node_modules', '@bitbaum/ai-forms');
   for (const file of ['README.md', 'LICENSE']) {
     assert.ok(existsSync(path.join(installDir, file)), `${file} is missing from the tarball`);
   }

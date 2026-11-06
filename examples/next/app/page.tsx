@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAiForm } from 'ai-forms/react';
-import type { FieldSpec } from 'ai-forms';
+import { useAiForm } from '@bitbaum/ai-forms/react';
+import type { FieldSpec } from '@bitbaum/ai-forms';
 import { JOB_FIELDS, JOB_INITIAL_VALUES } from '@/lib/form';
 
 const FIELDS: readonly FieldSpec[] = JOB_FIELDS;

@@ -1,4 +1,4 @@
-import type { CompleteFn } from 'ai-forms';
+import type { CompleteFn } from '@bitbaum/ai-forms';
 
 /**
  * The example never bundles a key. Set one and you get a real model; set none
