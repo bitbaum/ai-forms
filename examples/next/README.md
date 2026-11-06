@@ -1,4 +1,4 @@
-# ai-forms — runnable example
+# @bitbaum/ai-forms — runnable example
 
 A job-posting form you fill by describing it, then change by continuing to talk to it.
 

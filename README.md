@@ -1,4 +1,4 @@
-# ai-forms
+# @bitbaum/ai-forms
 
 [![npm](https://img.shields.io/npm/v/ai-forms.svg)](https://www.npmjs.com/package/ai-forms)
 [![CI](https://github.com/bitbaum/ai-forms/actions/workflows/ci.yml/badge.svg)](https://github.com/bitbaum/ai-forms/actions/workflows/ci.yml)
@@ -9,7 +9,7 @@ Headless AI form filling and conversational refinement.
 Forms are the worst part of most software. This package makes a form answer to plain language — fill it from a description, then keep talking to it ("shorter", "move the date to next Friday", "actually call it something else") until it is right.
 
 ```
-pnpm add ai-forms
+pnpm add @bitbaum/ai-forms
 ```
 
 No provider SDK, no markup, no styles. You pass in a function that calls whatever model you already use; the package handles prompting, parsing, sanitising, and the merge rules that decide who wins when the model and the user disagree.
@@ -66,7 +66,7 @@ The same mistake has a sibling: a single minimum input length. A fill descriptio
 
 ```ts
 // src/config/ai-forms.ts
-import { defineFields, type FormTarget } from 'ai-forms';
+import { defineFields, type FormTarget } from '@bitbaum/ai-forms';
 
 export const GOAL_FORM: FormTarget = {
   key: 'goal',
@@ -89,7 +89,7 @@ export const AI_FORMS = [GOAL_FORM /* , ... */];
 
 ```ts
 // src/app/api/ai/form-assist/route.ts
-import { createFormAssistHandler } from 'ai-forms/server';
+import { createFormAssistHandler } from '@bitbaum/ai-forms/server';
 import { AI_FORMS } from '@/config/ai-forms';
 import { getCurrentUserId } from '@/lib/session';
 
@@ -153,7 +153,7 @@ const form = useAiForm({ target: 'goal', fields: GOAL_FORM.fields });
 
 ## API
 
-### `ai-forms`
+### `@bitbaum/ai-forms`
 
 | Export | Purpose |
 | --- | --- |
@@ -164,11 +164,11 @@ const form = useAiForm({ target: 'goal', fields: GOAL_FORM.fields });
 | `parseAssistResponse(text)` | Extract JSON from fenced or prose-wrapped completions |
 | `MIN_INSTRUCTION_LENGTH` | Per-intent input floors |
 
-### `ai-forms/server`
+### `@bitbaum/ai-forms/server`
 
 `createFormAssistHandler(config)` → `(Request) => Promise<Response>`. Web-standard, so it drops straight into a Next.js App Router route. `authorize` runs before any model call.
 
-### `ai-forms/react`
+### `@bitbaum/ai-forms/react`
 
 `useAiForm(options)` → values, `setValue`, `ask` / `fill` / `refine`, `busy`, `error`, `transcript`, `changed`, `isAiTouched`, `undo`, `canUndo`, `reset`, `suggest` / `suggestions` / `suggesting` / `applySuggestion`.
 
