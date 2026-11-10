@@ -1,4 +1,4 @@
-import { defineFields } from 'ai-forms';
+import { defineFields } from '@bitbaum/ai-forms';
 
 /**
  * One declaration of what this form contains. The server resolves fields by

@@ -11,7 +11,7 @@
     "verify": "pnpm run typecheck && pnpm run build"
   },
   "dependencies": {
-    "ai-forms": "file:../..",
+    "@bitbaum/ai-forms": "file:../..",
     "next": "^15.5.28",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
